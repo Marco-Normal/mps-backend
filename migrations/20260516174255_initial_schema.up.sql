@@ -1,0 +1,9 @@
+-- Add up migration script here
+CREATE TABLE IF NOT EXISTS produtos (
+       id INTEGER PRIMARY KEY,
+       nome TEXT NOT NULL,
+       marca VARCHAR(20) NOT NULL,
+       num_fab VARCHAR(20),
+       unidade VARCHAR(5) NOT NULL,
+       valor DECIMAL(10, 2) NOT NULL
+);

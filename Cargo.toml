@@ -1,0 +1,13 @@
+[package]
+name = "mps-backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+csv = "1.4.0"
+dotenvy = "0.15.7"
+rust_decimal = { version = "1.42.0", features = ["serde-float"] }
+serde = { version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "rust_decimal"] }
+tokio = { version = "1.52.3", features = ["full"] }
+tracing = "0.1.44"
