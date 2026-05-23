@@ -2,8 +2,9 @@
 FROM rust:1.95-bullseye as builder
 WORKDIR /app
 COPY . .
+ENV SQLX_OFFLINE=true
 # Build the application in release mode for maximum speed
-RUN cargo build --release
+RUN cargo build --release --bin init --bin api
 
 # Stage 2: The minimal runtime environment
 FROM debian:bookworm-slim
@@ -12,9 +13,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from the builder stage
-COPY --from=builder /app/target/release/mps-backend /app/csv_to_sql
+COPY --from=builder /app/target/release/init /app/init
+COPY --from=builder /app/target/release/api /app/api
 COPY ./raw ./raw
 COPY ./migrations ./migrations
 COPY ./.env ./.env
 
-CMD ["./csv_to_sql"]
+CMD ["./api"]
