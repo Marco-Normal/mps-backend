@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, nome,marca,num_fab,unidade,valor FROM produtos WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nome",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "marca",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "num_fab",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "unidade",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "valor",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "4df126b4ce1196943c765d8caf10f2ae96380bf46f9ec1842439e771e3c703a8"
+}

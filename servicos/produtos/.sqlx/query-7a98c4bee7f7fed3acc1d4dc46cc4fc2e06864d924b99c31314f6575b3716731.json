@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM produtos WHERE id = $1 RETURNING id, nome,marca,num_fab,unidade,valor",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nome",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "marca",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "num_fab",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "unidade",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "valor",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "7a98c4bee7f7fed3acc1d4dc46cc4fc2e06864d924b99c31314f6575b3716731"
+}

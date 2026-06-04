@@ -1,15 +1,16 @@
-[package]
-name = "mps-backend"
+[workspace]
+members = [
+	"servicos/*",
+  "libs/*"
+	]
+resolver = "2"
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
-
-[dependencies]
-axum = "0.8.9"
-csv = "1.4.0"
-dotenvy = "0.15.7"
-rust_decimal = { version = "1.42.0", features = ["serde-float"] }
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "rust_decimal"] }
+[workspace.dependencies]
 tokio = { version = "1.52.3", features = ["full"] }
-tracing = "0.1.44"
+axum = "0.8.9"
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "postgres", "rust_decimal"] }
+serde = { version = "1.0.228", features = ["derive"] }
+miette = { version = "7.6.0", features = ["fancy"]}
+common = { path = "./libs/common/" } # Path relative to servicos/*

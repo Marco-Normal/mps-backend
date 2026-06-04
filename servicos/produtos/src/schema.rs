@@ -8,3 +8,11 @@ pub struct ProductSchema {
     pub unidade: String,
     pub valor: Decimal,
 }
+#[derive(Deserialize, Debug)]
+pub struct UpdateProductSchema {
+    pub nome: Option<String>,
+    pub marca: Option<String>,
+    pub num_fab: Option<String>,
+    pub unidade: Option<String>,
+    pub valor: Option<Decimal>,
+}

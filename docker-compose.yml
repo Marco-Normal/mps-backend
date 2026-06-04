@@ -1,46 +1,57 @@
 name: mps
 
 services:
-  db:
+  produtos-db:
     image: postgres:17-alpine
-    container_name: mps-db
+    container_name: mps-produtos-db
     restart: unless-stopped
     env_file: .env
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${PRODUTOS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PRODUTOS_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PRODUTOS_DB_NAME}
+      
     ports:
-      - "${DB_PORT}:5432"
+      - "${PRODUTOS_DB_PORT}:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
-      - ./scripts/init-user.sh:/docker-entypoint-initdb.d/init-user.sh
+      - pg_produtos_data:/var/lib/postgresql/data
+      - ./scripts/init-user.sh:/docker-entrypoint-initdb.d/init-user.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${PRODUTOS_POSTGRES_USER} -d ${PRODUTOS_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
-  init:
-    build: .
-    container_name: mps-init
+  produtos-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: produtos
+    container_name: mps-pedidos-init
     depends_on:
-      db:
+      produtos-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      DATABASE_URL: postgres://${PRODUTOS_MIGRATION_USER}:${PRODUTOS_MIGRATION_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
+      APP_USER: ${APP_USER}
     command: ["./init"]
-  api:
-    build: .
-    container_name: mps-api
+  produtos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: produtos
+    container_name: mps-produtos-api
     depends_on:
-      init:
+      produtos-init:
         condition: service_completed_successfully
-      db:
+      produtos-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-    command: ["./api"]
+      DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
     restart: unless-stopped
+    ports:
+       - "3000:3000"
 
 volumes:
-  pg_data:
+  pg_produtos_data:

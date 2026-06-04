@@ -1,0 +1,9 @@
+[package]
+name = "common"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio.workspace = true
+sqlx.workspace = true
+miette.workspace = true

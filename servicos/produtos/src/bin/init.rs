@@ -1,0 +1,75 @@
+use std::fs::File;
+
+use common::db_utils::{create_pool, table_exists};
+
+use miette::IntoDiagnostic;
+use produtos::{models::Product, normalization::normalize_string};
+use tracing::{Level, info, span};
+
+#[tokio::main]
+pub async fn main() -> miette::Result<()> {
+    info!("Initializing pool");
+    let pool = create_pool(1).await;
+    info!("Checking if migrations are needed...");
+    if !table_exists(&pool, "produtos").await? {
+        sqlx::migrate!().run(&pool).await.into_diagnostic()?;
+    }
+
+    let data = "raw/data.csv";
+    let data = File::open(data).into_diagnostic()?;
+    let mut reader = csv::Reader::from_reader(data);
+    for result in reader.deserialize() {
+        let record: Product = result.into_diagnostic()?;
+        let span = span!(Level::INFO, "Populating", id = record.id);
+        let (nome_norm, marca_norm) = (
+            normalize_string(&record.nome),
+            normalize_string(&record.marca),
+        );
+        let _guard = span.enter();
+        sqlx::query(
+            r#"INSERT INTO produtos (id, nome, nome_norm, marca, marca_norm, num_fab, unidade, valor)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
+        )
+        .bind(record.id)
+        .bind(record.nome)
+        .bind(nome_norm)
+        .bind(record.marca)
+        .bind(marca_norm)
+        .bind(record.num_fab)
+        .bind(record.unidade)
+        .bind(record.valor)
+        .execute(&pool)
+        .await
+        .into_diagnostic()?;
+        info!(id = record.id, "Insertion complete");
+    }
+    let max_id: Option<i32> = sqlx::query_scalar("SELECT MAX(id) FROM produtos")
+        .fetch_one(&pool)
+        .await
+        .into_diagnostic()?;
+    info!(max_id, "Setting max id...");
+    if let Some(max) = max_id {
+        info!("{}", format!("Max id: {max}"));
+        sqlx::query("SELECT setval('produtos_id_seq', $1)")
+            .bind(max)
+            .execute(&pool)
+            .await
+            .into_diagnostic()?;
+    }
+    let app_user = dotenvy::var("APP_USER").expect("APP USER MUST BE SET");
+    // After running migrations
+    sqlx::raw_sql(&format!(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}"
+    ))
+    .execute(&pool)
+    .await
+    .into_diagnostic()?;
+    sqlx::raw_sql(&format!(
+        "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {app_user}"
+    ))
+    .execute(&pool)
+    .await
+    .into_diagnostic()?;
+    info!("Initialization complete");
+    Ok(())
+}

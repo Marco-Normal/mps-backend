@@ -1,22 +1,35 @@
-# Stage 1: Build the Rust binary
-FROM rust:1.95-bullseye as builder
+# 1. Planner Stage: Prepare the recipe
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
+
+FROM chef AS planner
 COPY . .
-ENV SQLX_OFFLINE=true
-# Build the application in release mode for maximum speed
-RUN cargo build --release --bin init --bin api
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Stage 2: The minimal runtime environment
-FROM debian:bookworm-slim
+# 2. Cacher Stage: Build third-party dependencies
+FROM chef AS cacher
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# 3. Builder Stage: Build our actual workspace binaries
+FROM chef AS builder
+COPY . .
+COPY --from=cacher /app/target target
+COPY --from=cacher /usr/local/cargo /usr/local/cargo
+
+# Use a build argument to specify which workspace member to build
+ARG SERVICE_NAME
+RUN cargo build --release --package ${SERVICE_NAME}
+
+# 4. Runtime Stage: A ultra-slim image to run the binary
+FROM debian:trixie-slim AS runtime
 WORKDIR /app
-# Install OpenSSL and CA certificates (required by sqlx for secure connections)
-RUN apt-get update && apt-get install -y libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy the binary from the builder stage
-COPY --from=builder /app/target/release/init /app/init
+ARG SERVICE_NAME
+# Copy binaries dynamically based on the service name
 COPY --from=builder /app/target/release/api /app/api
+COPY --from=builder /app/target/release/init /app/init
 COPY ./raw ./raw
-COPY ./migrations ./migrations
-COPY ./.env ./.env
 
+# Default fallback command
 CMD ["./api"]
