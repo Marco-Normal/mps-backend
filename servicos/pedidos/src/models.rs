@@ -48,6 +48,7 @@ pub struct AppState {
     pub db: PgPool,
     pub http: reqwest::Client,
     pub produtos_url: String,
+    pub jwt_secret: String,
 }
 
 #[cfg(test)]
