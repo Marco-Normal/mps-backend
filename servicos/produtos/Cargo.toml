@@ -11,7 +11,7 @@ path = "src/main.rs"
   path = "src/bin/init.rs"
 
 [dependencies]
-axum.workspace = true
+axum = { workspace = true, features = ["multipart"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 csv = "1.4.0"
 dotenvy.workspace = true

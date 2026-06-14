@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Multipart, Path, Query, State},
     response::IntoResponse,
 };
+use tokio::io::AsyncWriteExt;
 use common::api_response::ApiResponse;
 use errors::errors::AppError;
 
@@ -205,4 +206,109 @@ pub async fn get_products_by_query(
     Ok(Json(ApiResponse::ok(serde_json::json!({
         "products": products
     }))))
+}
+
+#[tracing::instrument(skip(state, multipart), fields(id = %id))]
+pub async fn upload_product_image(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>,
+    mut multipart: Multipart,
+) -> Result<impl IntoResponse, AppError> {
+    // verify product exists
+    sqlx::query!("SELECT id FROM produtos WHERE id = $1", id)
+        .fetch_one(&state.db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => AppError::NotFound {
+                service: "Product".to_string(),
+                id: id.to_string(),
+            },
+            _ => AppError::DbError(e),
+        })?;
+
+    let field = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::Internal("No file field in request".to_string()))?;
+
+    let filename = field
+        .file_name()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    let data = field
+        .bytes()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let file_path = state.static_dir.join(&filename);
+    let path_str = file_path.to_string_lossy().to_string();
+
+    let mut file = tokio::fs::File::create(&file_path)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    file.write_all(&data)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let image = sqlx::query_as!(
+        crate::models::ProductImage,
+        r#"INSERT INTO imagens_produto (id_produto, path) VALUES ($1, $2)
+        RETURNING id, id_produto, path, created_at"#,
+        id,
+        path_str,
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(AppError::DbError)?;
+
+    info!("Image uploaded for product {id}");
+    Ok(Json(ApiResponse::ok(serde_json::json!({ "image": image }))))
+}
+
+#[tracing::instrument(skip(state), fields(id = %id))]
+pub async fn get_product_images(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>,
+) -> Result<impl IntoResponse, AppError> {
+    let images = sqlx::query_as!(
+        crate::models::ProductImage,
+        r#"SELECT id, id_produto, path, created_at FROM imagens_produto WHERE id_produto = $1"#,
+        id
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(AppError::DbError)?;
+
+    Ok(Json(ApiResponse::ok(serde_json::json!({ "images": images }))))
+}
+
+#[tracing::instrument(skip(state), fields(id = %id, img_id = %img_id))]
+pub async fn delete_product_image(
+    State(state): State<Arc<AppState>>,
+    Path((id, img_id)): Path<(i32, i64)>,
+) -> Result<impl IntoResponse, AppError> {
+    let image = sqlx::query_as!(
+        crate::models::ProductImage,
+        r#"DELETE FROM imagens_produto WHERE id = $1 AND id_produto = $2
+        RETURNING id, id_produto, path, created_at"#,
+        img_id,
+        id,
+    )
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => AppError::NotFound {
+            service: "ProductImage".to_string(),
+            id: img_id.to_string(),
+        },
+        _ => AppError::DbError(e),
+    })?;
+
+    // Delete the file from disk (ignore error if file already gone)
+    let _ = tokio::fs::remove_file(&image.path).await;
+
+    info!("Image {img_id} deleted for product {id}");
+    Ok(Json(ApiResponse::success(serde_json::json!({ "image": image }))))
 }

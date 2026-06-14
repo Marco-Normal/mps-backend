@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 
 use crate::{
     handlers::{
-        create_product_handler, delete_product_by_id, get_product_by_id, get_products_by_query,
-        update_product_by_id,
+        create_product_handler, delete_product_by_id, delete_product_image,
+        get_product_by_id, get_product_images, get_products_by_query,
+        update_product_by_id, upload_product_image,
     },
     models::AppState,
 };
@@ -22,6 +23,14 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             get(get_product_by_id)
                 .delete(delete_product_by_id)
                 .patch(update_product_by_id),
+        )
+        .route(
+            "/api/products/{id}/imagens",
+            post(upload_product_image).get(get_product_images),
+        )
+        .route(
+            "/api/products/{id}/imagens/{img_id}",
+            delete(delete_product_image),
         )
         .with_state(app_state)
 }
