@@ -76,7 +76,12 @@ async def download_image(
         logger.warning("Image download failed for %s: %s", url, exc)
         return None
 
-    ext = _ext_from_content_type(resp.headers.get("content-type", "image/jpeg"))
+    content_type = resp.headers.get("content-type", "image/jpeg")
+    mime = content_type.split(";")[0].strip()
+    if not mime.startswith("image/"):
+        logger.warning("Unexpected content-type %r for %s — skipping", mime, url)
+        return None
+    ext = _ext_from_content_type(content_type)
     filename = f"{uuid.uuid4()}{ext}"
     dest = static_dir / filename
     try:
@@ -98,6 +103,7 @@ async def enrich_product(
     pool: asyncpg.Pool,
     static_dir: Path,
     dry_run: bool,
+    http_client: httpx.AsyncClient,
 ) -> None:
     product_id: int = product["id"]
     nome: str = product["nome"]
@@ -133,27 +139,32 @@ async def enrich_product(
         return
 
     # Download images
-    async with httpx.AsyncClient() as client:
-        filenames: list[str] = []
-        for url in scraped.image_urls:
-            filename = await download_image(url, static_dir, client)
-            if filename:
-                filenames.append(filename)
+    filenames: list[str] = []
+    for url in scraped.image_urls:
+        filename = await download_image(url, static_dir, http_client)
+        if filename:
+            filenames.append(filename)
 
-    # Write to DB in a single transaction
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute(
-                "UPDATE produtos SET descricao = $1 WHERE id = $2",
-                description,
-                product_id,
-            )
-            for filename in filenames:
+    # Write to DB in a single transaction; clean up files on failure
+    file_paths = [static_dir / f for f in filenames]
+    try:
+        async with pool.acquire() as conn:
+            async with conn.transaction():
                 await conn.execute(
-                    "INSERT INTO imagens_produto (id_produto, path) VALUES ($1, $2)",
+                    "UPDATE produtos SET descricao = $1 WHERE id = $2",
+                    description,
                     product_id,
-                    filename,
                 )
+                for filename in filenames:
+                    await conn.execute(
+                        "INSERT INTO imagens_produto (id_produto, path) VALUES ($1, $2)",
+                        product_id,
+                        filename,
+                    )
+    except Exception:
+        for fp in file_paths:
+            fp.unlink(missing_ok=True)
+        raise
 
     logger.info(
         "Enriched id=%d: descricao set, %d image(s) saved",
@@ -169,8 +180,14 @@ async def run(args: argparse.Namespace) -> None:
     database_url = os.environ["DATABASE_URL"]
     static_dir = Path(os.environ["STATIC_DIR"])
     marcas_raw = os.environ.get("MARCA", "Hurricane")
-    delay_ms = int(os.environ.get("SCRAPER_DELAY_MS", "500"))
+    try:
+        delay_ms = int(os.environ.get("SCRAPER_DELAY_MS", "500"))
+    except ValueError:
+        raise SystemExit("SCRAPER_DELAY_MS must be an integer (milliseconds)")
     marcas = [m.strip() for m in marcas_raw.split(",") if m.strip()]
+    if not marcas:
+        logger.warning("MARCA env var resolved to empty list — nothing will be enriched")
+        return
 
     static_dir.mkdir(parents=True, exist_ok=True)
 
@@ -198,10 +215,16 @@ async def run(args: argparse.Namespace) -> None:
             logger.info("Nothing to do — all target products are already enriched.")
             return
 
-        for i, product in enumerate(products):
-            await enrich_product(product, pool, static_dir, args.dry_run)
-            if i < len(products) - 1:
-                await asyncio.sleep(delay_ms / 1000.0)
+        async with httpx.AsyncClient() as http_client:
+            for i, product in enumerate(products):
+                try:
+                    await enrich_product(product, pool, static_dir, args.dry_run, http_client)
+                except Exception:
+                    logger.exception(
+                        "Unexpected error enriching product id=%d — skipping", product["id"]
+                    )
+                if i < len(products) - 1:
+                    await asyncio.sleep(delay_ms / 1000.0)
 
     finally:
         await pool.close()
