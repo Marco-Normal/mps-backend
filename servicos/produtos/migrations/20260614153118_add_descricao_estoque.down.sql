@@ -1,0 +1,3 @@
+ALTER TABLE produtos
+  DROP COLUMN IF EXISTS descricao,
+  DROP COLUMN IF EXISTS estoque;
