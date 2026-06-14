@@ -4,11 +4,22 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-sqlx.workspace = true
 axum.workspace = true
+axum-extra = { version = "0.10", features = ["typed-header"] }
 tokio.workspace = true
+sqlx.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 common.workspace = true
 errors.workspace = true
-serde.workspace = true
+uuid.workspace = true
+reqwest.workspace = true
+futures.workspace = true
+jsonwebtoken.workspace = true
+dotenvy.workspace = true
+miette = { version = "7.6.0", features = ["fancy"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 rust_decimal = { version = "1.42.0", features = ["serde-float"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
