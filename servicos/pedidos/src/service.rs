@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use errors::errors::AppError;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
@@ -91,7 +93,7 @@ pub async fn list_orders(
 }
 
 pub async fn create_order(
-    state: &AppState,
+    state: Arc<AppState>,
     customer_id: Uuid,
     body: CreateOrderSchema,
 ) -> Result<CompleteOrder, AppError> {
@@ -143,6 +145,16 @@ pub async fn create_order(
     }
 
     tx.commit().await.map_err(AppError::DbError)?;
+
+    // Notify seller via WhatsApp — fire-and-forget, order already committed
+    {
+        let state_n = Arc::clone(&state);
+        let validated_n = validated.clone();
+        let order_id = order.id;
+        tokio::spawn(async move {
+            crate::notificacao::notify_order(state_n, customer_id, order_id, validated_n).await;
+        });
+    }
 
     let total = compute_total(&items);
     Ok(CompleteOrder { order, items, total })

@@ -22,7 +22,7 @@ pub async fn create_order_handler(
     Json(body): Json<CreateOrderSchema>,
 ) -> Result<impl IntoResponse, AppError> {
     info!(%customer_id, "Creating order");
-    let order = service::create_order(&state, customer_id, body).await?;
+    let order = service::create_order(Arc::clone(&state), customer_id, body).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({ "order": order }))))
 }
 
