@@ -7,3 +7,4 @@ edition.workspace = true
 tokio.workspace = true
 sqlx.workspace = true
 miette.workspace = true
+serde= {default-features = false, version = "1.0.228"}

@@ -52,6 +52,59 @@ services:
     restart: unless-stopped
     ports:
        - "3000:3000"
+       # -----------------------------------------
+    pedidos-db:
+      image: postgres:17-alpine
+      container_name: mps-pedidos-db
+      restart: unless-stopped
+      env_file: .env
+      environment:
+        POSTGRES_USER: ${PEDIDOS_POSTGRES_USER}
+        POSTGRES_PASSWORD: ${PEDIDOS_POSTGRES_PASSWORD}
+        POSTGRES_DB: ${PEDIDOS_DB_NAME}
+      
+    ports:
+      - "${PEDIDOS_DB_PORT}:5432"
+    volumes:
+      - pg_pedidos_data:/var/lib/postgresql/data
+#      - ./scripts/init-user.sh:/docker-entrypoint-initdb.d/init-user.sh 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PEDIDOS_POSTGRES_USER} -d ${PEDIDOS_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  pedidos-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: pedidos
+    container_name: mps-pedidos-init
+    depends_on:
+      pedidos-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${PEDIDOS_MIGRATION_USER}:${PEDIDOS_MIGRATION_PASSWORD}@pedidos-db:5432/${PEDIDOS_DB_NAME}
+      APP_USER: ${APP_USER}
+    command: ["./init"]
+  produtos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: pedidos
+    container_name: mps-pedidos-api
+    depends_on:
+      pedidos-init:
+        condition: service_completed_successfully
+      pedidos-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@pedidos-db:5432/${PEDIDOS_DB_NAME}
+    restart: unless-stopped
+    ports:
+       - "3001:3000"
 
 volumes:
   pg_produtos_data:
+  pg_pedidos_data:

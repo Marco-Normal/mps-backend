@@ -16,3 +16,9 @@ pub struct UpdateProductSchema {
     pub unidade: Option<String>,
     pub valor: Option<Decimal>,
 }
+
+#[derive(Deserialize, Debug)]
+pub struct ProductSearchSchema {
+    pub q: String,
+    pub limit: Option<i64>,
+}

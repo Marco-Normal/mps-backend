@@ -2,23 +2,24 @@ use std::sync::Arc;
 
 use axum::{
     Json,
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{Path, Query, State},
     response::IntoResponse,
 };
-use serde_json::json;
+use common::api_response::ApiResponse;
+use errors::errors::AppError;
+
 use tracing::{error, info, warn};
 
 use crate::{
     models::{AppState, Product},
     normalization::normalize_string,
-    schema::{ProductSchema, UpdateProductSchema},
+    schema::{ProductSchema, ProductSearchSchema, UpdateProductSchema},
 };
-#[tracing::instrument]
+#[tracing::instrument(skip(state), fields(nome = %body.nome))]
 pub async fn create_product_handler(
     State(state): State<Arc<AppState>>,
     Json(body): Json<ProductSchema>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     info!(new_record = ?body, "Inserting into database");
     let nome_norm = normalize_string(&body.nome);
     let marca_norm = normalize_string(&body.marca);
@@ -36,35 +37,26 @@ pub async fn create_product_handler(
     )
     .fetch_one(&state.db)
     .await
-    .map_err(|e| e.to_string());
-    if let Err(err) = product {
-        error!("Duplicated key value");
-        if err.to_string().contains("duplicate key value") {
-            let err_response = json!({
-                "status": "error",
-                "message": "Product already exists",
-            });
-            return Err((StatusCode::CONFLICT, Json(err_response)));
+    .map_err(|e| {
+        if e.to_string().contains("duplicated key value") {
+            AppError::Conflict("Product".to_string())
+        } else {
+            AppError::DbError(e)
         }
-        error!("Error inserting into database");
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", err)})),
-        ));
-    }
+    })?;
+
     info!("Product inserted with sucess");
-    let product_response = json!({
-        "status": "sucess",
-        "data": json!({"product": product})
-    });
-    Ok(Json(product_response))
+
+    Ok(Json(ApiResponse::ok(
+        serde_json::json!({"product": product}),
+    )))
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(state), fields(id = %id))]
 pub async fn get_product_by_id(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     info!(id, "Querying by id");
     let product_result = sqlx::query_as!(
         Product,
@@ -76,33 +68,26 @@ pub async fn get_product_by_id(
     match product_result {
         Ok(product) => {
             info!("Product found");
-            let response = serde_json::json!({
-                "status": "ok",
-                "data": serde_json::json!({
-                    "product": product
-                })
-            });
-            Ok(Json(response))
+            Ok(Json(ApiResponse::ok(serde_json::json!({
+                "product": product
+            }))))
         }
         Err(sqlx::Error::RowNotFound) => {
             error!("Product with said ID doens't exists");
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format!("Product with ID: {id} not found")
-            });
-            Err((StatusCode::NOT_FOUND, Json(error_response)))
+            Err(AppError::NotFound {
+                service: String::from("Product"),
+                id,
+            })
         }
-        Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"status": "error", "message": format!("{e}")})),
-        )),
+        Err(e) => Err(AppError::DbError(e)),
     }
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip(state), fields(id = %id))]
 pub async fn delete_product_by_id(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     warn!(id, "Deleting product by ID");
     let product: Product = sqlx::query_as!(
         Product,
@@ -114,34 +99,25 @@ pub async fn delete_product_by_id(
     .map_err(|e| match e {
         sqlx::Error::RowNotFound => {
             error!("Id not found");
-            let error_response = serde_json::json!({
-                "status": "fail",
-                "message": format!("Product with ID: {id} not found")
-            });
-            (StatusCode::NOT_FOUND, Json(error_response))
+            AppError::NotFound {
+                service: String::from("Product"),
+                id,
+            }
         }
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"status": "error", "message": format!("{e}")})),
-        ),
+        _ => AppError::DbError(e),
     })?;
 
-    let response = serde_json::json!({
-        "status" : "sucess",
-        "message": "Product deleted with sucess",
-        "data": {
-                "deleted_product": product
-        }
-    });
     info!("Deletion complete");
-    Ok(Json(response))
+    Ok(Json(ApiResponse::success(serde_json::json!({
+        "product": product
+    }))))
 }
-#[tracing::instrument]
+#[tracing::instrument(skip(state), fields(id = %id))]
 pub async fn update_product_by_id(
     Path(id): Path<i32>,
     State(state): State<Arc<AppState>>,
     Json(body): Json<UpdateProductSchema>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     warn!(id, "Updating product by id");
     let query_result = sqlx::query_as!(
         Product,
@@ -155,20 +131,14 @@ pub async fn update_product_by_id(
         Ok(product) => product,
         Err(sqlx::Error::RowNotFound) => {
             error!("Product not found");
-            let error_response = serde_json::json!({
-                "status": "error",
-                "message": format!("Product with ID: {} not found", id)
+
+            return Err(AppError::NotFound {
+                service: String::from("Product"),
+                id,
             });
-            return Err((StatusCode::NOT_FOUND, Json(error_response)));
         }
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "status": "error",
-                    "message": format!("{:?}",e)
-                })),
-            ));
+            return Err(AppError::DbError(e));
         }
     };
 
@@ -195,20 +165,49 @@ pub async fn update_product_by_id(
     .fetch_one(&state.db)
     .await
     .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "status": "error",
-                "message": format!("{:?}", e)
-            })),
-        )
+        AppError::DbError(e)
     })?;
 
-    let response = json!({
-        "status": "success",
-        "data": json!({
-            "product": updated_product
-        })
-    });
-    Ok(Json(response))
+    Ok(Json(ApiResponse::success(serde_json::json!({
+        "product": updated_product
+    }))))
+}
+#[tracing::instrument(fields(query = %params.q), skip(state))]
+pub async fn get_products_by_query(
+    state: State<Arc<AppState>>,
+    Query(params): Query<ProductSearchSchema>,
+) -> Result<impl IntoResponse, AppError> {
+    let normalized_q = normalize_string(&params.q);
+    let products: Vec<Product> = if let Some(limit) = params.limit {
+        sqlx::query_as!(
+            Product,
+            r#"SELECT id, nome, marca, num_fab, unidade, valor
+            FROM produtos
+            WHERE nome_norm % $1 OR marca_norm % $1
+            ORDER BY GREATEST(similarity(nome_norm, $1), similarity(marca_norm, $1)) DESC
+            LIMIT $2
+            "#,
+            normalized_q,
+            limit
+        )
+        .fetch_all(&state.db)
+        .await
+        .map_err(AppError::DbError)?
+    } else {
+        sqlx::query_as!(
+            Product,
+            r#"SELECT id, nome, marca, num_fab, unidade, valor
+            FROM produtos
+            WHERE nome_norm % $1 OR marca_norm % $1
+            ORDER BY GREATEST(similarity(nome_norm, $1), similarity(marca_norm, $1)) DESC
+            "#,
+            normalized_q,
+        )
+        .fetch_all(&state.db)
+        .await
+        .map_err(AppError::DbError)?
+    };
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "products": products
+    }))))
 }

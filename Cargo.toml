@@ -14,3 +14,4 @@ sqlx = { version = "0.8.6", features = ["runtime-tokio", "postgres", "rust_decim
 serde = { version = "1.0.228", features = ["derive"] }
 miette = { version = "7.6.0", features = ["fancy"]}
 common = { path = "./libs/common/" } # Path relative to servicos/*
+errors = { path = "./libs/errors/" }
