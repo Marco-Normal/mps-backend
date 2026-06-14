@@ -92,7 +92,7 @@ pub async fn notify_order(
     items: Vec<ValidatedItem>,
 ) {
     let cliente = ClientesMock::get(customer_id).await;
-    let message = build_message(order_id, &cliente, &items, chrono::Local::now());
+    let message = build_message(order_id, &cliente, &items, Local::now());
 
     let url = format!(
         "{}/message/sendText/{}",
