@@ -105,6 +105,10 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@pedidos-db:5432/${PEDIDOS_DB_NAME}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME}
+      SELLER_WHATSAPP: ${SELLER_WHATSAPP}
     restart: unless-stopped
     ports:
       - "3001:3000"
@@ -128,7 +132,19 @@ services:
       produtos-db:
         condition: service_healthy
 
+  evolution-api:
+    image: atendai/evolution-api:v2.2.3
+    container_name: mps-evolution-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+    volumes:
+      - evolution_instances:/evolution/instances
+
 volumes:
   pg_produtos_data:
   pg_pedidos_data:
   produtos_static:
+  evolution_instances:
