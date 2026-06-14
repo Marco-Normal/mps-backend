@@ -76,7 +76,7 @@ pub async fn get_product_by_id(
             error!("Product with said ID doens't exists");
             Err(AppError::NotFound {
                 service: String::from("Product"),
-                id,
+                id: id.to_string(),
             })
         }
         Err(e) => Err(AppError::DbError(e)),
@@ -101,7 +101,7 @@ pub async fn delete_product_by_id(
             error!("Id not found");
             AppError::NotFound {
                 service: String::from("Product"),
-                id,
+                id: id.to_string(),
             }
         }
         _ => AppError::DbError(e),
@@ -134,7 +134,7 @@ pub async fn update_product_by_id(
 
             return Err(AppError::NotFound {
                 service: String::from("Product"),
-                id,
+                id: id.to_string(),
             });
         }
         Err(e) => {
