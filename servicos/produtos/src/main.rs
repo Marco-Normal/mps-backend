@@ -1,6 +1,6 @@
 use common::db_utils::create_pool;
 use dotenvy::dotenv;
-use miette::IntoDiagnostic;
+use miette::{IntoDiagnostic, WrapErr};
 use produtos::{models::AppState, router::create_router};
 use std::sync::Arc;
 use tracing_appender::rolling::Rotation;
@@ -24,7 +24,9 @@ async fn main() -> miette::Result<()> {
     let pool = create_pool(10).await;
     let static_dir_str = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());
     let static_dir = std::path::PathBuf::from(&static_dir_str);
-    std::fs::create_dir_all(&static_dir).expect("Failed to create static dir");
+    std::fs::create_dir_all(&static_dir)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("Failed to create static dir: {}", static_dir.display()))?;
     let app = create_router(Arc::new(AppState { db: pool.clone(), static_dir }));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.into_diagnostic()
