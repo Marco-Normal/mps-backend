@@ -10,7 +10,6 @@ services:
       POSTGRES_USER: ${PRODUTOS_POSTGRES_USER}
       POSTGRES_PASSWORD: ${PRODUTOS_POSTGRES_PASSWORD}
       POSTGRES_DB: ${PRODUTOS_DB_NAME}
-      
     ports:
       - "${PRODUTOS_DB_PORT}:5432"
     volumes:
@@ -21,13 +20,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
   produtos-init:
     build:
       context: .
       dockerfile: Dockerfile
       args:
         SERVICE_NAME: produtos
-    container_name: mps-pedidos-init
+    container_name: mps-produtos-init
     depends_on:
       produtos-db:
         condition: service_healthy
@@ -35,6 +35,7 @@ services:
       DATABASE_URL: postgres://${PRODUTOS_MIGRATION_USER}:${PRODUTOS_MIGRATION_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
       APP_USER: ${APP_USER}
     command: ["./init"]
+
   produtos-api:
     build:
       context: .
@@ -49,30 +50,32 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
+      STATIC_DIR: /static
     restart: unless-stopped
     ports:
-       - "3000:3000"
-       # -----------------------------------------
-    pedidos-db:
-      image: postgres:17-alpine
-      container_name: mps-pedidos-db
-      restart: unless-stopped
-      env_file: .env
-      environment:
-        POSTGRES_USER: ${PEDIDOS_POSTGRES_USER}
-        POSTGRES_PASSWORD: ${PEDIDOS_POSTGRES_PASSWORD}
-        POSTGRES_DB: ${PEDIDOS_DB_NAME}
-      
+      - "3000:3000"
+    volumes:
+      - produtos_static:/static
+
+  pedidos-db:
+    image: postgres:17-alpine
+    container_name: mps-pedidos-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${PEDIDOS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${PEDIDOS_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PEDIDOS_DB_NAME}
     ports:
       - "${PEDIDOS_DB_PORT}:5432"
     volumes:
       - pg_pedidos_data:/var/lib/postgresql/data
-#      - ./scripts/init-user.sh:/docker-entrypoint-initdb.d/init-user.sh 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PEDIDOS_POSTGRES_USER} -d ${PEDIDOS_DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
+
   pedidos-init:
     build:
       context: .
@@ -87,7 +90,8 @@ services:
       DATABASE_URL: postgres://${PEDIDOS_MIGRATION_USER}:${PEDIDOS_MIGRATION_PASSWORD}@pedidos-db:5432/${PEDIDOS_DB_NAME}
       APP_USER: ${APP_USER}
     command: ["./init"]
-  produtos-api:
+
+  pedidos-api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -103,8 +107,26 @@ services:
       DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@pedidos-db:5432/${PEDIDOS_DB_NAME}
     restart: unless-stopped
     ports:
-       - "3001:3000"
+      - "3001:3000"
+
+  produtos-scraper:
+    build:
+      context: ./servicos/scraper
+    container_name: mps-produtos-scraper
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
+      STATIC_DIR: /static
+      MARCA: "Hurricane"
+      SCRAPER_DELAY_MS: "500"
+      LOG_LEVEL: INFO
+    volumes:
+      - produtos_static:/static
+    depends_on:
+      produtos-init:
+        condition: service_completed_successfully
 
 volumes:
   pg_produtos_data:
   pg_pedidos_data:
+  produtos_static:
