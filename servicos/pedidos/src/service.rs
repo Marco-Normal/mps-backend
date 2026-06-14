@@ -63,19 +63,21 @@ pub async fn get_order(db: &PgPool, order_id: i64) -> Result<CompleteOrder, AppE
 
 pub async fn list_orders(
     db: &PgPool,
+    jwt_customer_id: Uuid,        // always from JWT — add this parameter
     query: &OrderListQuery,
 ) -> Result<Vec<Order>, AppError> {
+    // Use jwt_customer_id as the mandatory filter, ignore query.customer_id for authorization
     let orders = sqlx::query_as!(
         Order,
         r#"SELECT id, customer_id, stat as "stat: Status", created_at, updated_at
         FROM pedidos
-        WHERE ($1::uuid IS NULL OR customer_id = $1)
+        WHERE customer_id = $1
           AND ($2::order_status IS NULL OR stat = $2)
         ORDER BY created_at DESC
         LIMIT $3"#,
-        query.customer_id as Option<Uuid>,
+        jwt_customer_id,
         query.status.clone() as Option<Status>,
-        query.limit.unwrap_or(50),
+        query.limit.unwrap_or(50).min(200),
     )
     .fetch_all(db)
     .await
@@ -178,14 +180,20 @@ pub async fn update_status(
     let updated = sqlx::query_as!(
         Order,
         r#"UPDATE pedidos SET stat = $1, updated_at = NOW()
-        WHERE id = $2
+        WHERE id = $2 AND stat = $3
         RETURNING id, customer_id, stat as "stat: Status", created_at, updated_at"#,
         body.status as Status,
         order_id,
+        order.stat as Status,
     )
     .fetch_one(db)
     .await
-    .map_err(AppError::DbError)?;
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => AppError::UnprocessableEntity(
+            "Order status changed concurrently, please retry".to_string(),
+        ),
+        _ => AppError::DbError(e),
+    })?;
 
     Ok(updated)
 }
@@ -222,6 +230,24 @@ pub async fn update_items(
         ));
     }
 
+    // Guard: at least one operation must be specified
+    if body.add.is_none() && body.update.is_none() && body.remove.is_none() {
+        return Err(AppError::UnprocessableEntity(
+            "At least one of add, update, or remove must be specified".to_string(),
+        ));
+    }
+
+    // Guard: update quantities must be positive
+    if let Some(ref updates) = body.update {
+        for u in updates {
+            if u.quantity <= 0 {
+                return Err(AppError::UnprocessableEntity(
+                    format!("quantity must be positive, got {}", u.quantity),
+                ));
+            }
+        }
+    }
+
     // Validate new items before opening transaction
     let validated_adds: Vec<ValidatedItem> = if let Some(ref add) = body.add {
         validate_items(&state.http, &state.produtos_url, add).await?
@@ -234,7 +260,7 @@ pub async fn update_items(
     // Remove items
     if let Some(remove_ids) = &body.remove {
         for &item_id in remove_ids {
-            sqlx::query!(
+            let del = sqlx::query!(
                 "DELETE FROM items_pedidos WHERE id = $1 AND id_order = $2",
                 item_id,
                 order_id
@@ -242,13 +268,20 @@ pub async fn update_items(
             .execute(&mut *tx)
             .await
             .map_err(AppError::DbError)?;
+
+            if del.rows_affected() == 0 {
+                return Err(AppError::NotFound {
+                    service: "OrderItem".to_string(),
+                    id: item_id.to_string(),
+                });
+            }
         }
     }
 
     // Update quantities
     if let Some(updates) = &body.update {
         for u in updates {
-            sqlx::query!(
+            let upd = sqlx::query!(
                 "UPDATE items_pedidos SET quantity = $1 WHERE id = $2 AND id_order = $3",
                 u.quantity,
                 u.id,
@@ -257,6 +290,13 @@ pub async fn update_items(
             .execute(&mut *tx)
             .await
             .map_err(AppError::DbError)?;
+
+            if upd.rows_affected() == 0 {
+                return Err(AppError::NotFound {
+                    service: "OrderItem".to_string(),
+                    id: u.id.to_string(),
+                });
+            }
         }
     }
 
@@ -317,10 +357,20 @@ pub async fn delete_order(
         ));
     }
 
-    sqlx::query!("DELETE FROM pedidos WHERE id = $1", order_id)
-        .execute(db)
-        .await
-        .map_err(AppError::DbError)?;
+    let result = sqlx::query!(
+        "DELETE FROM pedidos WHERE id = $1 AND stat = $2",
+        order_id,
+        order.stat.clone() as Status,
+    )
+    .execute(db)
+    .await
+    .map_err(AppError::DbError)?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::UnprocessableEntity(
+            "Order status changed concurrently, please retry".to_string(),
+        ));
+    }
 
     Ok(order)
 }
