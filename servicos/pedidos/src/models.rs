@@ -54,6 +54,8 @@ pub struct AppState {
     pub evolution_key: String,
     pub evolution_instance: String,
     pub seller_whatsapp: String,
+    // CORS
+    pub frontend_url: axum::http::HeaderValue,
 }
 
 #[cfg(test)]

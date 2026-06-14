@@ -57,6 +57,13 @@ async fn main() -> miette::Result<()> {
         .into_diagnostic()
         .wrap_err("SELLER_WHATSAPP must be set")?;
 
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .into_diagnostic()
+        .wrap_err("FRONTEND_URL must be set")?
+        .parse::<axum::http::HeaderValue>()
+        .into_diagnostic()
+        .wrap_err("FRONTEND_URL is not a valid HTTP origin header value")?;
+
     let state = Arc::new(AppState {
         db: pool,
         http,
@@ -66,6 +73,7 @@ async fn main() -> miette::Result<()> {
         evolution_key,
         evolution_instance,
         seller_whatsapp,
+        frontend_url,
     });
 
     let app = create_router(state);

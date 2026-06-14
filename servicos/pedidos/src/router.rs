@@ -2,8 +2,13 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    http::{
+        Method,
+        header::{AUTHORIZATION, CONTENT_TYPE},
+    },
     routing::{get, patch, post},
 };
+use tower_http::cors::CorsLayer;
 
 use crate::{
     handlers::{
@@ -14,6 +19,16 @@ use crate::{
 };
 
 pub fn create_router(state: Arc<AppState>) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(state.frontend_url.clone())
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+        ])
+        .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
+
     Router::new()
         .route("/api/pedidos", post(create_order_handler).get(list_orders_handler))
         .route(
@@ -22,5 +37,6 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         .route("/api/pedidos/{id}/status", patch(update_status_handler))
         .route("/api/pedidos/{id}/items", patch(update_items_handler))
+        .layer(cors)
         .with_state(state)
 }
