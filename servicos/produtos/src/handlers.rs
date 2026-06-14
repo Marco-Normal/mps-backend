@@ -229,21 +229,24 @@ pub async fn upload_product_image(
     let field = multipart
         .next_field()
         .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or_else(|| AppError::Internal("No file field in request".to_string()))?;
+        .map_err(|e| AppError::UnprocessableEntity(format!("Multipart error: {e}")))?
+        .ok_or_else(|| AppError::UnprocessableEntity("Multipart error: No file field in request".to_string()))?;
 
-    let filename = field
+    let ext = field
         .file_name()
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        .and_then(|n| std::path::Path::new(n).extension())
+        .and_then(|e| e.to_str())
+        .map(|e| format!(".{e}"))
+        .unwrap_or_default();
+    let safe_filename = format!("{}{}", uuid::Uuid::new_v4(), ext);
+    let file_path = state.static_dir.join(&safe_filename);
+    // Store only filename relative to static_dir, not absolute path:
+    let path_str = safe_filename.clone();
 
     let data = field
         .bytes()
         .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-
-    let file_path = state.static_dir.join(&filename);
-    let path_str = file_path.to_string_lossy().to_string();
+        .map_err(|e| AppError::UnprocessableEntity(format!("Multipart error: {e}")))?;
 
     let mut file = tokio::fs::File::create(&file_path)
         .await
@@ -261,7 +264,10 @@ pub async fn upload_product_image(
     )
     .fetch_one(&state.db)
     .await
-    .map_err(AppError::DbError)?;
+    .map_err(|e| {
+        let _ = std::fs::remove_file(&file_path); // best-effort cleanup on DB failure
+        AppError::DbError(e)
+    })?;
 
     info!("Image uploaded for product {id}");
     Ok(Json(ApiResponse::ok(serde_json::json!({ "image": image }))))
@@ -307,7 +313,7 @@ pub async fn delete_product_image(
     })?;
 
     // Delete the file from disk (ignore error if file already gone)
-    let _ = tokio::fs::remove_file(&image.path).await;
+    let _ = tokio::fs::remove_file(state.static_dir.join(&image.path)).await;
 
     info!("Image {img_id} deleted for product {id}");
     Ok(Json(ApiResponse::success(serde_json::json!({ "image": image }))))

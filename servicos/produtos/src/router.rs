@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     routing::{delete, get, post},
 };
 
@@ -26,7 +27,9 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         )
         .route(
             "/api/products/{id}/imagens",
-            post(upload_product_image).get(get_product_images),
+            post(upload_product_image)
+                .layer(DefaultBodyLimit::max(5 * 1024 * 1024))
+                .get(get_product_images),
         )
         .route(
             "/api/products/{id}/imagens/{img_id}",
