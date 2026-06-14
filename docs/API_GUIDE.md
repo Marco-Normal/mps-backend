@@ -927,15 +927,24 @@ Returned by `POST /api/pedidos`, `GET /api/pedidos/:id`, and `PATCH /api/pedidos
 
 ## Known Gaps & Front-End Notes
 
-### 1. Image URLs are not served by the API
+> **Note:** Gotchas #1 (image serving) and #5 (decimal serialization) described below have been resolved. The remaining items depend on the `clientes` microservice.
 
-The `produtos-api` stores images on disk under `STATIC_DIR` (mounted as `/static` in Docker) and records the UUID filename in the DB. **However, there is no HTTP route to serve these files** — the API does not expose a `GET /static/:filename` endpoint.
+### 1. Image URLs
 
-To display product images the front end needs either:
-- A separate file server (e.g. nginx) serving the `produtos_static` Docker volume
-- Or a new `GET /api/products/:id/imagens/:img_id/file` endpoint to be added to the API
+Images are served by `produtos-api` at:
 
-Until that is wired up, the `path` field from `GET /api/products/:id/imagens` cannot be turned into a displayable URL.
+```
+GET http://localhost:3000/static/{path}
+```
+
+where `path` is the value of the `path` field from `GET /api/products/:id/imagens`.
+
+**Example:** if `imagens` returns `"path": "3f2e1a4b-uuid.jpg"`, the full image URL is:
+```
+http://localhost:3000/static/3f2e1a4b-uuid.jpg
+```
+
+In production, replace `localhost:3000` with the actual `produtos-api` hostname.
 
 ### 2. No customer registration/login endpoint
 
@@ -966,17 +975,13 @@ When an order is placed (`POST /api/pedidos`), a WhatsApp message is sent to the
 - Does **not** retry on failure
 - Currently uses a mock customer name/phone (`"Cliente de Teste"`, `"5511999999999"`) — real customer data integration is pending
 
-### 5. Decimal values serialise as strings
+### 5. Decimal values serialise as JSON numbers
 
-`valor` (product price), `unit_price`, and `total` are Rust `Decimal` values serialised as JSON strings, not numbers. Parse them with a decimal library, not `parseFloat`.
+`valor`, `unit_price`, and `total` are serialised as JSON **numbers** (not strings), because both services use `rust_decimal` with the `serde-float` feature. Standard `parseFloat` or `Number()` works fine for display. For financial calculations requiring exact precision, use a decimal library:
 
 ```js
-// Correct
 import Decimal from 'decimal.js';
-const price = new Decimal(product['VLR_VENDA1']);
-
-// Wrong — floating point imprecision
-const price = parseFloat(product['VLR_VENDA1']);
+const price = new Decimal(product['VLR_VENDA1']); // safe
 ```
 
 ### 6. `GET /api/pedidos` returns `Order` not `CompleteOrder`
