@@ -125,6 +125,8 @@ services:
     depends_on:
       produtos-init:
         condition: service_completed_successfully
+      produtos-db:
+        condition: service_healthy
 
 volumes:
   pg_produtos_data:
