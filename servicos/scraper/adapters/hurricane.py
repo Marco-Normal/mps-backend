@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+from urllib.parse import quote_plus
 
 import httpx
 from bs4 import BeautifulSoup
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://www.hurricanesound.com.br"
 _SEARCH = _BASE + "/?s={query}"
+
+_MIN_DESCRIPTION_LEN = 20
 
 # Playwright launch args required when running as non-root inside Docker
 _PLAYWRIGHT_ARGS = ["--no-sandbox", "--disable-setuid-sandbox"]
@@ -50,7 +53,7 @@ async def _scrape_manufacturer(query: str) -> ScrapedData | None:
     Returns ScrapedData if at least one of (description, images) is found,
     otherwise None.
     """
-    search_url = _SEARCH.format(query=query.replace(" ", "+"))
+    search_url = _SEARCH.format(query=quote_plus(query))
 
     try:
         async with async_playwright() as p:
@@ -130,7 +133,9 @@ def _find_product_link(soup: BeautifulSoup) -> str | None:
     if container:
         a = container.find("a", href=re.compile(r"^https?://"))
         if a:
-            return a["href"]
+            href = a.get("href")
+            if href and isinstance(href, str):
+                return href
 
     return None
 
@@ -146,7 +151,7 @@ def _extract_description(soup: BeautifulSoup) -> str | None:
         el = soup.select_one(selector)
         if el:
             text = el.get_text(separator=" ", strip=True)
-            if len(text) > 20:
+            if len(text) > _MIN_DESCRIPTION_LEN:
                 return text
     return None
 
