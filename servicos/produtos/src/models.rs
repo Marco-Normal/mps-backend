@@ -31,5 +31,5 @@ pub struct ProductImage {
 #[derive(Debug)]
 pub struct AppState {
     pub db: PgPool,
-    pub static_dir: String,
+    pub static_dir: std::path::PathBuf,
 }

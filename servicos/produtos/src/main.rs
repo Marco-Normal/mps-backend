@@ -22,7 +22,10 @@ async fn main() -> miette::Result<()> {
         .init();
     dotenv().ok();
     let pool = create_pool(10).await;
-    let app = create_router(Arc::new(AppState { db: pool.clone() }));
+    let static_dir_str = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".to_string());
+    let static_dir = std::path::PathBuf::from(&static_dir_str);
+    std::fs::create_dir_all(&static_dir).expect("Failed to create static dir");
+    let app = create_router(Arc::new(AppState { db: pool.clone(), static_dir }));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.into_diagnostic()
 }
