@@ -27,6 +27,7 @@ struct ProductData {
 
 #[derive(Deserialize)]
 struct ProdutoDto {
+    #[serde(rename = "Descricao")]
     nome: String,
     #[serde(rename = "VLR_VENDA1")]
     valor: Decimal,
