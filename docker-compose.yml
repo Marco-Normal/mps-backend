@@ -51,6 +51,7 @@ services:
     environment:
       DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
       STATIC_DIR: /static
+      FRONTEND_URL: ${FRONTEND_URL}
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -109,6 +110,7 @@ services:
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
       EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME}
       SELLER_WHATSAPP: ${SELLER_WHATSAPP}
+      FRONTEND_URL: ${FRONTEND_URL}
     restart: unless-stopped
     ports:
       - "3001:3000"
