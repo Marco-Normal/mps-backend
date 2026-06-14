@@ -41,11 +41,31 @@ async fn main() -> miette::Result<()> {
         .into_diagnostic()
         .wrap_err("JWT_SECRET must be set")?;
 
+    let evolution_url = std::env::var("EVOLUTION_API_URL")
+        .into_diagnostic()
+        .wrap_err("EVOLUTION_API_URL must be set")?;
+
+    let evolution_key = std::env::var("EVOLUTION_API_KEY")
+        .into_diagnostic()
+        .wrap_err("EVOLUTION_API_KEY must be set")?;
+
+    let evolution_instance = std::env::var("EVOLUTION_INSTANCE_NAME")
+        .into_diagnostic()
+        .wrap_err("EVOLUTION_INSTANCE_NAME must be set")?;
+
+    let seller_whatsapp = std::env::var("SELLER_WHATSAPP")
+        .into_diagnostic()
+        .wrap_err("SELLER_WHATSAPP must be set")?;
+
     let state = Arc::new(AppState {
         db: pool,
         http,
         produtos_url,
         jwt_secret,
+        evolution_url,
+        evolution_key,
+        evolution_instance,
+        seller_whatsapp,
     });
 
     let app = create_router(state);

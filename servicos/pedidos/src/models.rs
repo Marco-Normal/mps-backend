@@ -49,6 +49,11 @@ pub struct AppState {
     pub http: reqwest::Client,
     pub produtos_url: String,
     pub jwt_secret: String,
+    // Evolution API / WhatsApp notification
+    pub evolution_url: String,
+    pub evolution_key: String,
+    pub evolution_instance: String,
+    pub seller_whatsapp: String,
 }
 
 #[cfg(test)]
