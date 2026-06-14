@@ -30,7 +30,7 @@ fn compute_total(items: &[OrderItem]) -> Decimal {
     })
 }
 
-pub async fn get_order(db: &PgPool, order_id: i64) -> Result<CompleteOrder, AppError> {
+pub async fn get_order(db: &PgPool, order_id: i64, customer_id: Uuid) -> Result<CompleteOrder, AppError> {
     let order = sqlx::query_as!(
         Order,
         r#"SELECT id, customer_id, stat as "stat: Status", created_at, updated_at
@@ -46,6 +46,10 @@ pub async fn get_order(db: &PgPool, order_id: i64) -> Result<CompleteOrder, AppE
         },
         _ => AppError::DbError(e),
     })?;
+
+    if order.customer_id != customer_id {
+        return Err(AppError::Unauthorized);
+    }
 
     let items = sqlx::query_as!(
         OrderItem,
@@ -323,7 +327,7 @@ pub async fn update_items(
 
     tx.commit().await.map_err(AppError::DbError)?;
 
-    get_order(&state.db, order_id).await
+    get_order(&state.db, order_id, customer_id).await
 }
 
 pub async fn delete_order(

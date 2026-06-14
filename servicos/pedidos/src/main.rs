@@ -8,11 +8,16 @@ use tracing_subscriber::{filter, fmt, prelude::*};
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {
+    let log_dir = std::env::var("PEDIDOS_LOG_DIR").unwrap_or_else(|_| "./logs".to_string());
+    std::fs::create_dir_all(&log_dir)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("Failed to create log dir: {log_dir}"))?;
+
     let file_appender = tracing_appender::rolling::RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
         .max_log_files(10)
         .filename_prefix("pedidos_api.log")
-        .build("/var/log")
+        .build(&log_dir)
         .into_diagnostic()
         .wrap_err("Failed to initialize log file appender")?;
 
@@ -45,11 +50,12 @@ async fn main() -> miette::Result<()> {
 
     let app = create_router(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3001")
+    let port = std::env::var("PEDIDOS_PORT").unwrap_or_else(|_| "3001".to_string());
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .into_diagnostic()
-        .wrap_err("Failed to bind to port 3001")?;
+        .wrap_err_with(|| format!("Failed to bind to port {port}"))?;
 
-    tracing::info!("pedidos service listening on port 3001");
+    tracing::info!(port, "pedidos service listening");
     axum::serve(listener, app).await.into_diagnostic()
 }

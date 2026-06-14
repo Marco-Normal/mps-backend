@@ -7,7 +7,7 @@ use axum::{
 };
 use common::api_response::ApiResponse;
 use errors::errors::AppError;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::{
     auth::JwtCustomer,
@@ -37,11 +37,11 @@ pub async fn list_orders_handler(
 
 pub async fn get_order_handler(
     State(state): State<Arc<AppState>>,
-    JwtCustomer(_customer_id): JwtCustomer,
+    JwtCustomer(customer_id): JwtCustomer,
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
     info!(id, "Fetching order");
-    let order = service::get_order(&state.db, id).await?;
+    let order = service::get_order(&state.db, id, customer_id).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({ "order": order }))))
 }
 
@@ -51,7 +51,7 @@ pub async fn update_status_handler(
     Path(id): Path<i64>,
     Json(body): Json<UpdateStatusSchema>,
 ) -> Result<impl IntoResponse, AppError> {
-    warn!(id, "Updating order status");
+    info!(id, "Updating order status");
     let order = service::update_status(&state.db, id, customer_id, body).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({ "order": order }))))
 }
@@ -62,7 +62,7 @@ pub async fn update_items_handler(
     Path(id): Path<i64>,
     Json(body): Json<UpdateOrderItemsSchema>,
 ) -> Result<impl IntoResponse, AppError> {
-    warn!(id, "Updating order items");
+    info!(id, "Updating order items");
     let order = service::update_items(&state, id, customer_id, body).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({ "order": order }))))
 }
@@ -72,7 +72,7 @@ pub async fn delete_order_handler(
     JwtCustomer(customer_id): JwtCustomer,
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
-    warn!(id, "Deleting order");
+    info!(id, "Deleting order");
     let order = service::delete_order(&state.db, id, customer_id).await?;
     Ok(Json(ApiResponse::success(serde_json::json!({ "order": order }))))
 }
