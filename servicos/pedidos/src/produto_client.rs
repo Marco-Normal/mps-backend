@@ -7,8 +7,10 @@ use serde::Deserialize;
 use crate::schema::AddItemSchema;
 
 /// Successful validation result for one item
+#[derive(Clone)]
 pub struct ValidatedItem {
     pub id_product: i32,
+    pub nome: String,
     pub quantity: i32,
     pub unit_price: Decimal,
 }
@@ -25,6 +27,7 @@ struct ProductData {
 
 #[derive(Deserialize)]
 struct ProdutoDto {
+    nome: String,
     #[serde(rename = "VLR_VENDA1")]
     valor: Decimal,
     estoque: i32,
@@ -62,6 +65,7 @@ pub async fn validate_items(
                                 } else {
                                     Ok(ValidatedItem {
                                         id_product,
+                                        nome: p.nome,
                                         quantity,
                                         unit_price: p.valor,
                                     })
