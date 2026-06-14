@@ -4,7 +4,7 @@ use axum::{
     Router,
     extract::DefaultBodyLimit,
     http::{
-        HeaderValue, Method,
+        Method,
         header::{AUTHORIZATION, CONTENT_TYPE},
     },
     routing::{delete, get, post},
@@ -22,18 +22,12 @@ use crate::{
 
 pub fn create_router(app_state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
-        .allow_origin(
-            app_state
-                .frontend_url
-                .parse::<HeaderValue>()
-                .expect("FRONTEND_URL is not a valid HTTP origin header value"),
-        )
+        .allow_origin(app_state.frontend_url.clone())
         .allow_methods([
             Method::GET,
             Method::POST,
             Method::PATCH,
             Method::DELETE,
-            Method::OPTIONS,
         ])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
 

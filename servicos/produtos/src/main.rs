@@ -29,7 +29,10 @@ async fn main() -> miette::Result<()> {
         .wrap_err_with(|| format!("Failed to create static dir: {}", static_dir.display()))?;
     let frontend_url = std::env::var("FRONTEND_URL")
         .into_diagnostic()
-        .wrap_err("FRONTEND_URL must be set")?;
+        .wrap_err("FRONTEND_URL must be set")?
+        .parse::<axum::http::HeaderValue>()
+        .into_diagnostic()
+        .wrap_err("FRONTEND_URL is not a valid HTTP origin header value")?;
     let app = create_router(Arc::new(AppState { db: pool.clone(), static_dir, frontend_url }));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.into_diagnostic()

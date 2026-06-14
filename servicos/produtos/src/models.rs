@@ -32,5 +32,5 @@ pub struct ProductImage {
 pub struct AppState {
     pub db: PgPool,
     pub static_dir: std::path::PathBuf,
-    pub frontend_url: String,
+    pub frontend_url: axum::http::HeaderValue,
 }
