@@ -137,11 +137,17 @@ pub async fn update_product_by_id(
     let n_marca_normalizada = normalize_string(&nova_marca);
     let nova_unidade = body.unidade.unwrap_or(product.unidade);
     let novo_valor = body.valor.unwrap_or(product.valor);
-    // Partial-update semantics: omitting descricao preserves the existing value.
-    // Sending null descricao is treated the same as omitting it (cannot clear once set).
-    let nova_descricao = body.descricao.or(product.descricao);
+    let nova_descricao = match body.descricao {
+        None => product.descricao,       // field absent — keep existing value
+        Some(None) => None,              // explicit null — clear the field
+        Some(Some(d)) => Some(d),        // new value — update
+    };
     let novo_estoque = body.estoque.unwrap_or(product.estoque);
-    let novo_num_fab = body.num_fab.or(product.num_fab);
+    let novo_num_fab = match body.num_fab {
+        None => product.num_fab,         // field absent — keep existing value
+        Some(None) => None,              // explicit null — clear the field
+        Some(Some(n)) => Some(n),        // new value — update
+    };
 
     let updated = sqlx::query_as!(
         Product,
