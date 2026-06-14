@@ -32,7 +32,7 @@ async def search_mercadolivre(
         )
         resp.raise_for_status()
         data = resp.json()
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("ML search failed for %r: %s", query, exc)
         return None, []
 
@@ -42,7 +42,10 @@ async def search_mercadolivre(
         return None, []
 
     item = results[0]
-    item_id: str = item["id"]
+    item_id: str | None = item.get("id")
+    if not item_id:
+        logger.warning("ML: item missing 'id' field for query %r", query)
+        return None, []
     description: str | None = item.get("title") or None
 
     image_urls = await _fetch_pictures(item_id, client)
@@ -58,8 +61,12 @@ async def _fetch_pictures(item_id: str, client: httpx.AsyncClient) -> list[str]:
         )
         resp.raise_for_status()
         pictures: list[dict] = resp.json()
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("ML pictures fetch failed for item %s: %s", item_id, exc)
+        return []
+
+    if not isinstance(pictures, list):
+        logger.warning("ML: unexpected pictures response for item %s", item_id)
         return []
 
     return [pic["url"] for pic in pictures if "url" in pic][:3]
