@@ -27,7 +27,10 @@ async fn main() -> miette::Result<()> {
     std::fs::create_dir_all(&static_dir)
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to create static dir: {}", static_dir.display()))?;
-    let app = create_router(Arc::new(AppState { db: pool.clone(), static_dir }));
+    let frontend_url = std::env::var("FRONTEND_URL")
+        .into_diagnostic()
+        .wrap_err("FRONTEND_URL must be set")?;
+    let app = create_router(Arc::new(AppState { db: pool.clone(), static_dir, frontend_url }));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.into_diagnostic()
 }
