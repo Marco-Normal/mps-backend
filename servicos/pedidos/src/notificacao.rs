@@ -45,8 +45,13 @@ impl ClientesMock {
 // ---------------------------------------------------------------------------
 
 /// Build the WhatsApp message text for a new order.
-/// Pure function — no I/O, fully unit-testable.
-pub fn build_message(order_id: i64, cliente: &ClienteInfo, items: &[ValidatedItem]) -> String {
+/// Pure function — accepts `now` as a parameter for full testability.
+pub fn build_message(
+    order_id: i64,
+    cliente: &ClienteInfo,
+    items: &[ValidatedItem],
+    now: chrono::DateTime<chrono::Local>,
+) -> String {
     let itens_fmt: String = items
         .iter()
         .map(|i| {
@@ -60,7 +65,7 @@ pub fn build_message(order_id: i64, cliente: &ClienteInfo, items: &[ValidatedIte
         .iter()
         .fold(Decimal::ZERO, |acc, i| acc + i.unit_price * Decimal::from(i.quantity));
 
-    let now = Local::now().format("%d/%m/%Y às %H:%M");
+    let now = now.format("%d/%m/%Y às %H:%M");
 
     format!(
         "🛒 *Novo Pedido #{order_id}*\n\n\
@@ -87,7 +92,7 @@ pub async fn notify_order(
     items: Vec<ValidatedItem>,
 ) {
     let cliente = ClientesMock::get(customer_id).await;
-    let message = build_message(order_id, &cliente, &items);
+    let message = build_message(order_id, &cliente, &items, chrono::Local::now());
 
     let url = format!(
         "{}/message/sendText/{}",
@@ -155,13 +160,13 @@ mod tests {
 
     #[test]
     fn build_message_contains_order_id() {
-        let msg = build_message(42, &cliente("João", "5511999"), &[item("Prod A", 1, "10.00")]);
+        let msg = build_message(42, &cliente("João", "5511999"), &[item("Prod A", 1, "10.00")], chrono::Local::now());
         assert!(msg.contains("Novo Pedido #42"), "missing order id in: {msg}");
     }
 
     #[test]
     fn build_message_contains_client_name_and_phone() {
-        let msg = build_message(1, &cliente("Maria Silva", "5521888777"), &[item("X", 1, "1.00")]);
+        let msg = build_message(1, &cliente("Maria Silva", "5521888777"), &[item("X", 1, "1.00")], chrono::Local::now());
         assert!(msg.contains("Maria Silva"), "missing name in: {msg}");
         assert!(msg.contains("5521888777"), "missing phone in: {msg}");
     }
@@ -173,7 +178,7 @@ mod tests {
             item("A", 2, "10.00"),
             item("B", 3, "5.00"),
         ];
-        let msg = build_message(1, &cliente("T", "0"), &items);
+        let msg = build_message(1, &cliente("T", "0"), &items, chrono::Local::now());
         assert!(msg.contains("35.00"), "expected total 35.00 in: {msg}");
     }
 
@@ -183,7 +188,7 @@ mod tests {
             item("Alto Falante Hurricane", 1, "164.00"),
             item("Radio MP3", 2, "39.90"),
         ];
-        let msg = build_message(1, &cliente("T", "0"), &items);
+        let msg = build_message(1, &cliente("T", "0"), &items, chrono::Local::now());
         assert!(msg.contains("Alto Falante Hurricane"), "missing item 1 in: {msg}");
         assert!(msg.contains("Radio MP3"), "missing item 2 in: {msg}");
     }
@@ -191,7 +196,16 @@ mod tests {
     #[test]
     fn build_message_per_line_shows_subtotal() {
         // 2 × 50.00 = 100.00 should appear on that line
-        let msg = build_message(1, &cliente("T", "0"), &[item("Prod", 2, "50.00")]);
+        let msg = build_message(1, &cliente("T", "0"), &[item("Prod", 2, "50.00")], chrono::Local::now());
         assert!(msg.contains("100.00"), "expected line subtotal 100.00 in: {msg}");
+    }
+
+    #[test]
+    fn build_message_contains_formatted_timestamp() {
+        use chrono::TimeZone;
+        // 2026-06-14 15:32:00 local time
+        let now = chrono::Local.with_ymd_and_hms(2026, 6, 14, 15, 32, 0).unwrap();
+        let msg = build_message(1, &cliente("T", "0"), &[item("X", 1, "1.00")], now);
+        assert!(msg.contains("14/06/2026 às 15:32"), "expected timestamp in: {msg}");
     }
 }
