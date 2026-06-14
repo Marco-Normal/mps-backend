@@ -146,13 +146,13 @@ pub async fn create_order(
 
     tx.commit().await.map_err(AppError::DbError)?;
 
-    // Notify seller via WhatsApp — fire-and-forget, order already committed
+    // Notify seller via WhatsApp — fire-and-forget, order already committed.
+    // JoinHandle intentionally dropped: notify_order handles all errors internally.
     {
         let state_n = Arc::clone(&state);
-        let validated_n = validated.clone();
         let order_id = order.id;
         tokio::spawn(async move {
-            crate::notificacao::notify_order(state_n, customer_id, order_id, validated_n).await;
+            crate::notificacao::notify_order(state_n, customer_id, order_id, validated).await;
         });
     }
 
