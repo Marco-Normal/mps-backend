@@ -13,19 +13,19 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 csv = "1.4.0"
-dotenvy = "0.15.7"
+dotenvy.workspace = true
 miette = { version = "7.6.0", features = ["fancy"] }
 rust_decimal = { version = "1.42.0", features = ["serde-float"] }
 serde.workspace = true
-serde_json = "1.0.149"
+serde_json.workspace = true
 sqlx.workspace = true
 thiserror = "2.0.18"
 tokio.workspace = true
 common.workspace = true
 errors.workspace = true
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
 unicode-normalization = "0.1.25"
 regex = "1.12.3"
-tracing-appender = "0.2.5"
+tracing-appender.workspace = true
 
