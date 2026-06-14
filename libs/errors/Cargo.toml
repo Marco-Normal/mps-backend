@@ -5,9 +5,9 @@ edition.workspace = true
 
 [dependencies]
 axum.workspace = true
-miette = { version = "7.6.0", features = ["fancy"] }
+miette.workspace = true
 thiserror = "2.0.18"
 sqlx.workspace = true
-tracing = "0.1"
+tracing.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }

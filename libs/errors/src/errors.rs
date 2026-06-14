@@ -25,7 +25,7 @@ pub enum AppError {
     Conflict(String),
     #[error("Unauthorized")]
     Unauthorized,
-    #[error("Unprocessable: {0}")]
+    #[error("{0}")]
     UnprocessableEntity(String),
     #[error("Validation failed")]
     ValidationFailed { items: Vec<ItemValidationError> },
@@ -106,6 +106,16 @@ mod tests {
     }
 
     #[test]
+    fn not_found_returns_404() {
+        let e = AppError::NotFound {
+            service: "Order".to_string(),
+            id: "uuid-here".to_string(),
+        };
+        let resp = e.into_response();
+        assert_eq!(resp.status(), axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[test]
     fn unauthorized_returns_401() {
         let e = AppError::Unauthorized;
         let resp = e.into_response();
@@ -115,6 +125,20 @@ mod tests {
     #[test]
     fn unprocessable_entity_returns_422() {
         let e = AppError::UnprocessableEntity("bad transition".to_string());
+        let resp = e.into_response();
+        assert_eq!(resp.status(), axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[test]
+    fn validation_failed_returns_422() {
+        let e = AppError::ValidationFailed {
+            items: vec![
+                ItemValidationError {
+                    id_product: 5,
+                    reason: "product not found".to_string(),
+                },
+            ],
+        };
         let resp = e.into_response();
         assert_eq!(resp.status(), axum::http::StatusCode::UNPROCESSABLE_ENTITY);
     }
