@@ -1,5 +1,6 @@
 use rust_decimal::Decimal;
 use serde::Deserialize;
+
 #[derive(Deserialize, Debug)]
 pub struct ProductSchema {
     pub nome: String,
@@ -7,7 +8,10 @@ pub struct ProductSchema {
     pub num_fab: Option<String>,
     pub unidade: String,
     pub valor: Decimal,
+    pub descricao: Option<String>,
+    pub estoque: Option<i32>,
 }
+
 #[derive(Deserialize, Debug)]
 pub struct UpdateProductSchema {
     pub nome: Option<String>,
@@ -15,6 +19,8 @@ pub struct UpdateProductSchema {
     pub num_fab: Option<String>,
     pub unidade: Option<String>,
     pub valor: Option<Decimal>,
+    pub descricao: Option<String>,
+    pub estoque: Option<i32>,
 }
 
 #[derive(Deserialize, Debug)]

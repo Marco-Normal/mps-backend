@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 axum.workspace = true
+chrono = { version = "0.4.45", features = ["serde"] }
 csv = "1.4.0"
 dotenvy.workspace = true
 miette = { version = "7.6.0", features = ["fancy"] }
@@ -25,6 +26,7 @@ common.workspace = true
 errors.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+uuid = { workspace = true }
 unicode-normalization = "0.1.25"
 regex = "1.12.3"
 tracing-appender.workspace = true

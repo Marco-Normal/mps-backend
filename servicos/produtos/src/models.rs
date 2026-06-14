@@ -16,9 +16,20 @@ pub struct Product {
     pub unidade: String,
     #[serde(rename = "VLR_VENDA1")]
     pub valor: Decimal,
+    pub descricao: Option<String>,
+    pub estoque: i32,
+}
+
+#[derive(Deserialize, Debug, Serialize, sqlx::FromRow)]
+pub struct ProductImage {
+    pub id: i64,
+    pub id_produto: i32,
+    pub path: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug)]
 pub struct AppState {
     pub db: PgPool,
+    pub static_dir: String,
 }
