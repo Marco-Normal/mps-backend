@@ -26,7 +26,7 @@ pub struct Order {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, sqlx::FromRow)]
+#[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
 pub struct OrderItem {
     pub id: i64,
     pub id_order: i64,

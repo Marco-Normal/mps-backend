@@ -69,10 +69,9 @@ pub async fn get_order(db: &PgPool, order_id: i64, customer_id: Uuid) -> Result<
 
 pub async fn list_orders(
     db: &PgPool,
-    jwt_customer_id: Uuid,        // always from JWT — add this parameter
+    jwt_customer_id: Uuid,
     query: &OrderListQuery,
-) -> Result<Vec<Order>, AppError> {
-    // Use jwt_customer_id as the mandatory filter, ignore query.customer_id for authorization
+) -> Result<Vec<CompleteOrder>, AppError> {
     let orders = sqlx::query_as!(
         Order,
         r#"SELECT id, customer_id, stat as "stat: Status", created_at, updated_at
@@ -89,7 +88,37 @@ pub async fn list_orders(
     .await
     .map_err(AppError::DbError)?;
 
-    Ok(orders)
+    if orders.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let order_ids: Vec<i64> = orders.iter().map(|o| o.id).collect();
+
+    let all_items = sqlx::query_as!(
+        OrderItem,
+        r#"SELECT id, id_order, id_product, quantity, unit_price, created_at
+        FROM items_pedidos
+        WHERE id_order = ANY($1)"#,
+        &order_ids[..] as &[i64],
+    )
+    .fetch_all(db)
+    .await
+    .map_err(AppError::DbError)?;
+
+    let complete_orders = orders
+        .into_iter()
+        .map(|order| {
+            let items: Vec<OrderItem> = all_items
+                .iter()
+                .filter(|i| i.id_order == order.id)
+                .cloned()
+                .collect();
+            let total = compute_total(&items);
+            CompleteOrder { order, items, total }
+        })
+        .collect();
+
+    Ok(complete_orders)
 }
 
 pub async fn create_order(
@@ -414,6 +443,59 @@ mod tests {
         assert!(!is_valid_transition(&Status::Processando, &Status::Entregue));
         assert!(!is_valid_transition(&Status::Enviado, &Status::Processando));
         assert!(!is_valid_transition(&Status::Entregue, &Status::Processando));
+    }
+
+    #[test]
+    fn complete_orders_assembled_correctly() {
+        use chrono::Utc;
+        use uuid::Uuid;
+
+        let customer = Uuid::new_v4();
+        let now = Utc::now();
+
+        let orders = vec![
+            Order {
+                id: 1,
+                customer_id: customer,
+                stat: Status::Processando,
+                created_at: now,
+                updated_at: now,
+            },
+            Order {
+                id: 2,
+                customer_id: customer,
+                stat: Status::Confirmado,
+                created_at: now,
+                updated_at: now,
+            },
+        ];
+
+        let all_items = vec![
+            OrderItem { id: 10, id_order: 1, id_product: 100, quantity: 2, unit_price: Decimal::new(1000, 2), created_at: now },
+            OrderItem { id: 11, id_order: 2, id_product: 200, quantity: 1, unit_price: Decimal::new(5000, 2), created_at: now },
+            OrderItem { id: 12, id_order: 1, id_product: 101, quantity: 3, unit_price: Decimal::new(500, 2),  created_at: now },
+        ];
+
+        let complete: Vec<CompleteOrder> = orders
+            .into_iter()
+            .map(|order| {
+                let items: Vec<OrderItem> = all_items
+                    .iter()
+                    .filter(|i| i.id_order == order.id)
+                    .cloned()
+                    .collect();
+                let total = compute_total(&items);
+                CompleteOrder { order, items, total }
+            })
+            .collect();
+
+        // Order 1: 2×10.00 + 3×5.00 = 35.00
+        assert_eq!(complete[0].items.len(), 2);
+        assert_eq!(complete[0].total, Decimal::new(3500, 2));
+
+        // Order 2: 1×50.00 = 50.00
+        assert_eq!(complete[1].items.len(), 1);
+        assert_eq!(complete[1].total, Decimal::new(5000, 2));
     }
 
     #[test]

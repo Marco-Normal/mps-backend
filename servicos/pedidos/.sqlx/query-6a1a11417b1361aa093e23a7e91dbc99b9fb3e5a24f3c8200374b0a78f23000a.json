@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, id_order, id_product, quantity, unit_price, created_at\n        FROM items_pedidos\n        WHERE id_order = ANY($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "id_order",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "id_product",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "quantity",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "unit_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6a1a11417b1361aa093e23a7e91dbc99b9fb3e5a24f3c8200374b0a78f23000a"
+}
