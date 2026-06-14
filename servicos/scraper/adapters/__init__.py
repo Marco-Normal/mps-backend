@@ -40,7 +40,14 @@ class BrandAdapter(ABC):
         ...
 
 
-# Concrete adapter imports and REGISTRY are populated in Task 5 (hurricane.py).
+# Import concrete adapters AFTER the base class is defined.
 # Each entry maps the exact DB marca string to its adapter class.
-# To add a new brand: import the adapter and add a key here.
-REGISTRY: dict[str, type[BrandAdapter]] = {}
+# hurricane.py imports BrandAdapter from this module; the deferred import
+# ensures BrandAdapter is fully defined before hurricane.py is processed.
+from .hurricane import HurricaneAdapter  # noqa: E402
+
+REGISTRY: dict[str, type[BrandAdapter]] = {
+    "Hurricane": HurricaneAdapter,
+    # To add a new brand: import its adapter class and add a key here.
+    # "JBL": JBLAdapter,
+}
