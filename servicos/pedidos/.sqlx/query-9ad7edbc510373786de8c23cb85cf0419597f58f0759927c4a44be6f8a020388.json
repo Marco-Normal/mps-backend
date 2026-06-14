@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM pedidos WHERE id = $1 AND stat = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        {
+          "Custom": {
+            "name": "order_status",
+            "kind": {
+              "Enum": [
+                "processando",
+                "confirmado",
+                "enviado",
+                "entregue",
+                "cancelado",
+                "rejeitado"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9ad7edbc510373786de8c23cb85cf0419597f58f0759927c4a44be6f8a020388"
+}

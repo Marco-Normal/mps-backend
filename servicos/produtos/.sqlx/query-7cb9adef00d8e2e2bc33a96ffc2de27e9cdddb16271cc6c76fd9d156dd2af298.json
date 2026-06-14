@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, nome, marca, num_fab, unidade, valor\n            FROM produtos\n            WHERE nome_norm % $1 OR marca_norm % $1\n            ORDER BY GREATEST(similarity(nome_norm, $1), similarity(marca_norm, $1)) DESC\n            ",
+  "query": "SELECT id, nome, marca, num_fab, unidade, valor, descricao, estoque\n        FROM produtos WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -32,11 +32,21 @@
         "ordinal": 5,
         "name": "valor",
         "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "descricao",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "estoque",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int4"
       ]
     },
     "nullable": [
@@ -45,8 +55,10 @@
       false,
       true,
       false,
+      false,
+      true,
       false
     ]
   },
-  "hash": "66f9c9936b985575dab707df33620cc079c91a386b460c83181d3a3c851711fe"
+  "hash": "7cb9adef00d8e2e2bc33a96ffc2de27e9cdddb16271cc6c76fd9d156dd2af298"
 }

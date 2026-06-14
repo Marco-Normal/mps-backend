@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "DELETE FROM produtos WHERE id = $1 RETURNING id, nome,marca,num_fab,unidade,valor",
+  "query": "DELETE FROM produtos WHERE id = $1\n        RETURNING id, nome, marca, num_fab, unidade, valor, descricao, estoque",
   "describe": {
     "columns": [
       {
@@ -32,6 +32,16 @@
         "ordinal": 5,
         "name": "valor",
         "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "descricao",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "estoque",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -45,8 +55,10 @@
       false,
       true,
       false,
+      false,
+      true,
       false
     ]
   },
-  "hash": "7a98c4bee7f7fed3acc1d4dc46cc4fc2e06864d924b99c31314f6575b3716731"
+  "hash": "4d3359ac518e7a6cbbc15002467dbc5a77eca73252c7500987bd518ed726836a"
 }

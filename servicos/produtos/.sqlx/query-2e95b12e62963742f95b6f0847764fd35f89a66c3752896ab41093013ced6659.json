@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, nome,marca,num_fab,unidade,valor FROM produtos WHERE id = $1",
+  "query": "UPDATE produtos\n        SET nome=$1, marca=$2, num_fab=$3, unidade=$4, valor=$5,\n            nome_norm=$6, marca_norm=$7, descricao=$8, estoque=$9\n        WHERE id=$10\n        RETURNING id, nome, marca, num_fab, unidade, valor, descricao, estoque",
   "describe": {
     "columns": [
       {
@@ -32,10 +32,29 @@
         "ordinal": 5,
         "name": "valor",
         "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "descricao",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "estoque",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Numeric",
+        "Text",
+        "Varchar",
+        "Text",
+        "Int4",
         "Int4"
       ]
     },
@@ -45,8 +64,10 @@
       false,
       true,
       false,
+      false,
+      true,
       false
     ]
   },
-  "hash": "4df126b4ce1196943c765d8caf10f2ae96380bf46f9ec1842439e771e3c703a8"
+  "hash": "2e95b12e62963742f95b6f0847764fd35f89a66c3752896ab41093013ced6659"
 }

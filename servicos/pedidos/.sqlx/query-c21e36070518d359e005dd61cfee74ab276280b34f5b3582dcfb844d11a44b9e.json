@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE items_pedidos SET quantity = $1 WHERE id = $2 AND id_order = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c21e36070518d359e005dd61cfee74ab276280b34f5b3582dcfb844d11a44b9e"
+}

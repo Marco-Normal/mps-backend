@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM items_pedidos WHERE id = $1 AND id_order = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ed54525e03e4d23166c0528f7f95374c4a45649f19224069fc8bd0b6cc24832"
+}

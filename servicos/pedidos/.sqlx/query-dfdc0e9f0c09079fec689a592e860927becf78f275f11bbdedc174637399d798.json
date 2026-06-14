@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, customer_id, stat as \"stat: Status\", created_at, updated_at\n        FROM pedidos\n        WHERE customer_id = $1\n          AND ($2::order_status IS NULL OR stat = $2)\n        ORDER BY created_at DESC\n        LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "customer_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "stat: Status",
+        "type_info": {
+          "Custom": {
+            "name": "order_status",
+            "kind": {
+              "Enum": [
+                "processando",
+                "confirmado",
+                "enviado",
+                "entregue",
+                "cancelado",
+                "rejeitado"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "order_status",
+            "kind": {
+              "Enum": [
+                "processando",
+                "confirmado",
+                "enviado",
+                "entregue",
+                "cancelado",
+                "rejeitado"
+              ]
+            }
+          }
+        },
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dfdc0e9f0c09079fec689a592e860927becf78f275f11bbdedc174637399d798"
+}
