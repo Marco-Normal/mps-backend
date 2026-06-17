@@ -11,6 +11,7 @@ pub async fn main() -> miette::Result<()> {
     if !table_exists(&pool, "pedidos").await? {
         sqlx::migrate!().run(&pool).await.into_diagnostic()?;
         let app_user = dotenvy::var("APP_USER").expect("APP_USER must be set");
+        let migrator = dotenvy::var("MIGRATION_USER").unwrap_or_else(|_| "migrator".to_string());
         sqlx::raw_sql(&format!(
             "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}"
         ))
@@ -19,6 +20,20 @@ pub async fn main() -> miette::Result<()> {
         .into_diagnostic()?;
         sqlx::raw_sql(&format!(
             "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {app_user}"
+        ))
+        .execute(&pool)
+        .await
+        .into_diagnostic()?;
+        sqlx::raw_sql(&format!(
+            "ALTER DEFAULT PRIVILEGES FOR ROLE {migrator} IN SCHEMA public \
+             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {app_user}"
+        ))
+        .execute(&pool)
+        .await
+        .into_diagnostic()?;
+        sqlx::raw_sql(&format!(
+            "ALTER DEFAULT PRIVILEGES FOR ROLE {migrator} IN SCHEMA public \
+             GRANT USAGE, SELECT ON SEQUENCES TO {app_user}"
         ))
         .execute(&pool)
         .await

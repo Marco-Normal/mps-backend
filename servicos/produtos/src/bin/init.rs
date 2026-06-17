@@ -57,7 +57,8 @@ pub async fn main() -> miette::Result<()> {
                 .into_diagnostic()?;
         }
         let app_user = dotenvy::var("APP_USER").expect("APP USER MUST BE SET");
-        // After running migrations
+        let migrator = dotenvy::var("MIGRATION_USER").unwrap_or_else(|_| "migrator".to_string());
+        // After running migrations, grant DML to app_user on all tables
         sqlx::raw_sql(&format!(
             "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}"
         ))
@@ -66,6 +67,21 @@ pub async fn main() -> miette::Result<()> {
         .into_diagnostic()?;
         sqlx::raw_sql(&format!(
             "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {app_user}"
+        ))
+        .execute(&pool)
+        .await
+        .into_diagnostic()?;
+        // Future tables created by migrator auto-grant DML to app_user
+        sqlx::raw_sql(&format!(
+            "ALTER DEFAULT PRIVILEGES FOR ROLE {migrator} IN SCHEMA public \
+             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {app_user}"
+        ))
+        .execute(&pool)
+        .await
+        .into_diagnostic()?;
+        sqlx::raw_sql(&format!(
+            "ALTER DEFAULT PRIVILEGES FOR ROLE {migrator} IN SCHEMA public \
+             GRANT USAGE, SELECT ON SEQUENCES TO {app_user}"
         ))
         .execute(&pool)
         .await
