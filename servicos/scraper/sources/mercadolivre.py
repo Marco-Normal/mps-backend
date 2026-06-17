@@ -32,7 +32,7 @@ async def search_mercadolivre(
             return None
 
         results: list[dict] = data.get("results", [])
-        if not results:
+        if not isinstance(results, list) or not results:
             logger.info("ML: no results for %r", query)
             return None
 
@@ -67,4 +67,4 @@ async def _fetch_pictures(item_id: str, client: httpx.AsyncClient) -> list[str]:
         logger.warning("ML: unexpected pictures response for item %s", item_id)
         return []
 
-    return [pic["url"] for pic in pictures if "url" in pic][:3]
+    return [pic["url"] for pic in pictures if "url" in pic]
