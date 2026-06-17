@@ -1,0 +1,8 @@
+target/
+raw/
+docs/
+.git/
+.env
+token-optimizer/
+servicos/scraper/
+*.md
