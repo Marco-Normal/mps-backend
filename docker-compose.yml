@@ -32,8 +32,6 @@ services:
   produtos-init:
     image: mps-produtos:latest
     container_name: mps-produtos-init
-    profiles:
-      - init
     depends_on:
       produtos-db:
         condition: service_healthy
@@ -95,8 +93,6 @@ services:
   pedidos-init:
     image: mps-pedidos:latest
     container_name: mps-pedidos-init
-    profiles:
-      - init
     depends_on:
       pedidos-db:
         condition: service_healthy
@@ -138,7 +134,7 @@ services:
     environment:
       DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
       STATIC_DIR: /static
-      MARCA: "Hurricane"
+      MARCA: ${SCRAPER_MARCA:-Hurricane}
       SCRAPER_DELAY_MS: "500"
       LOG_LEVEL: INFO
     volumes:
@@ -146,6 +142,8 @@ services:
     depends_on:
       produtos-db:
         condition: service_healthy
+      produtos-init:
+        condition: service_completed_successfully
 
   evolution-api:
     image: atendai/evolution-api
