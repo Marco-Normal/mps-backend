@@ -11,7 +11,7 @@ from pathlib import Path
 import asyncpg
 import httpx
 
-from adapters import REGISTRY, ScrapedData
+from adapters import REGISTRY, GenericAdapter, ScrapedData
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,10 @@ def _parse_args() -> argparse.Namespace:
         help="Only process a single product by its DB id (must also have descricao IS NULL)",
     )
     return parser.parse_args()
+
+
+def _normalize_marcas(marcas_raw: str) -> list[str]:
+    return [m.strip().upper() for m in marcas_raw.split(",") if m.strip()]
 
 
 # ---------------------------------------------------------------------------
@@ -112,13 +116,13 @@ async def enrich_product(
 
     adapter_class = REGISTRY.get(marca)
     if adapter_class is None:
-        logger.warning(
-            "No adapter registered for marca=%r — skipping product id=%d",
+        adapter = GenericAdapter()
+        logger.info(
+            "No registered adapter for marca=%r — using GenericAdapter for product id=%d",
             marca, product_id,
         )
-        return
-
-    adapter = adapter_class()
+    else:
+        adapter = adapter_class()
     logger.info("Enriching product id=%d nome=%r marca=%r", product_id, nome, marca)
 
     scraped: ScrapedData | None = await adapter.search(nome, num_fab)
@@ -184,7 +188,7 @@ async def run(args: argparse.Namespace) -> None:
         delay_ms = int(os.environ.get("SCRAPER_DELAY_MS", "500"))
     except ValueError:
         raise SystemExit("SCRAPER_DELAY_MS must be an integer (milliseconds)")
-    marcas = [m.strip() for m in marcas_raw.split(",") if m.strip()]
+    marcas = _normalize_marcas(marcas_raw)
     if not marcas:
         logger.warning("MARCA env var resolved to empty list — nothing will be enriched")
         return
