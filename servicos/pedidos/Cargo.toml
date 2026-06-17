@@ -3,6 +3,14 @@ name = "pedidos"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "api"
+path = "src/main.rs"
+
+[[bin]]
+name = "init"
+path = "src/bin/init.rs"
+
 [dependencies]
 axum.workspace = true
 axum-extra = { version = "0.10", features = ["typed-header"] }
