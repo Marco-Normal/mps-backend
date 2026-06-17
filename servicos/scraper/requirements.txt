@@ -2,3 +2,6 @@ asyncpg==0.30.0
 playwright==1.49.0
 beautifulsoup4==4.12.3
 httpx==0.28.0
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-httpx>=0.30
