@@ -100,13 +100,7 @@ async def _scrape_manufacturer(query: str) -> ScrapedData | None:
 
 async def _scrape_mercadolivre(product_name: str) -> ScrapedData | None:
     """Call the generic Mercado Livre source as fallback."""
-    async with httpx.AsyncClient() as client:
-        description, image_urls = await search_mercadolivre(
-            f"Hurricane {product_name}", client
-        )
-    if not description and not image_urls:
-        return None
-    return ScrapedData(descricao=description, image_urls=image_urls)
+    return await search_mercadolivre(f"Hurricane {product_name}", None)
 
 
 # ---------------------------------------------------------------------------
