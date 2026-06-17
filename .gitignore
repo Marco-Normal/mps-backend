@@ -2,6 +2,8 @@
 .env
 /raw
 servicos/produtos/target
+__pycache__/
+*.pyc
 
 # Added by cargo
 #
