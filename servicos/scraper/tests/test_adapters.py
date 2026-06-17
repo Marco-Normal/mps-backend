@@ -110,3 +110,27 @@ def test_generic_adapter_exists_and_has_marca():
 def test_generic_adapter_not_in_registry():
     assert "GENERIC" not in REGISTRY
     assert GenericAdapter is not None
+
+
+def test_hurricane_adapter_sources_ordering():
+    from adapters.hurricane import HurricaneAdapter
+    from sources.hurricane_site import search_hurricane_site
+    from sources.mercadolivre import search_mercadolivre
+    from sources.duckduckgo import search_duckduckgo
+
+    sources = HurricaneAdapter()._sources()
+    assert len(sources) == 3
+    assert sources[0] is search_hurricane_site
+    assert sources[1] is search_mercadolivre
+    assert sources[2] is search_duckduckgo
+
+
+def test_generic_adapter_sources_ordering():
+    from adapters import GenericAdapter
+    from sources.mercadolivre import search_mercadolivre
+    from sources.duckduckgo import search_duckduckgo
+
+    sources = GenericAdapter()._sources()
+    assert len(sources) == 2
+    assert sources[0] is search_mercadolivre
+    assert sources[1] is search_duckduckgo
