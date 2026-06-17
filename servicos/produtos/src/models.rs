@@ -16,7 +16,9 @@ pub struct Product {
     pub unidade: String,
     #[serde(rename = "VLR_VENDA1")]
     pub valor: Decimal,
+    #[serde(default)]
     pub descricao: Option<String>,
+    #[serde(default)]
     pub estoque: i32,
 }
 

@@ -5,3 +5,4 @@ docs/
 token-optimizer/
 servicos/scraper/
 *.md
+.\#*

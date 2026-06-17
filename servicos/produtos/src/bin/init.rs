@@ -27,8 +27,8 @@ pub async fn main() -> miette::Result<()> {
             );
             let _guard = span.enter();
             sqlx::query(
-            r#"INSERT INTO produtos (id, nome, nome_norm, marca, marca_norm, num_fab, unidade, valor)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#,
+            r#"INSERT INTO produtos (id, nome, nome_norm, marca, marca_norm, num_fab, unidade, valor, descricao, estoque)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
         )
         .bind(record.id)
         .bind(record.nome)
@@ -38,6 +38,8 @@ pub async fn main() -> miette::Result<()> {
         .bind(record.num_fab)
         .bind(record.unidade)
         .bind(record.valor)
+        .bind(record.descricao)
+        .bind(record.estoque)
         .execute(&pool)
         .await
         .into_diagnostic()?;
