@@ -10,6 +10,10 @@ services:
       POSTGRES_USER: ${PRODUTOS_POSTGRES_USER}
       POSTGRES_PASSWORD: ${PRODUTOS_POSTGRES_PASSWORD}
       POSTGRES_DB: ${PRODUTOS_DB_NAME}
+      MIGRATION_USER: ${PRODUTOS_MIGRATION_USER}
+      MIGRATION_PASSWORD: ${PRODUTOS_MIGRATION_PASSWORD}
+      APP_USER: ${APP_USER}
+      APP_PASSWORD: ${APP_PASSWORD}
     ports:
       - "${PRODUTOS_DB_PORT}:5432"
     volumes:
@@ -68,10 +72,15 @@ services:
       POSTGRES_USER: ${PEDIDOS_POSTGRES_USER}
       POSTGRES_PASSWORD: ${PEDIDOS_POSTGRES_PASSWORD}
       POSTGRES_DB: ${PEDIDOS_DB_NAME}
+      MIGRATION_USER: ${PEDIDOS_MIGRATION_USER}
+      MIGRATION_PASSWORD: ${PEDIDOS_MIGRATION_PASSWORD}
+      APP_USER: ${APP_USER}
+      APP_PASSWORD: ${APP_PASSWORD}
     ports:
       - "${PEDIDOS_DB_PORT}:5432"
     volumes:
       - pg_pedidos_data:/var/lib/postgresql/data
+      - ./scripts/init-user.sh:/docker-entrypoint-initdb.d/init-user.sh
     healthcheck:
       test:
         [
