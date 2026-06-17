@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Awaitable
+
+logger = logging.getLogger(__name__)
+
+# Source function protocol: takes product_name and optional num_fab, returns data or None
+Source = Callable[[str, str | None], Awaitable["ScrapedData | None"]]
 
 
 @dataclass
 class ScrapedData:
-    """Holds scraped content for one product. image_urls is capped at 3."""
-
     descricao: str | None
     image_urls: list[str] = field(default_factory=list)
 
@@ -16,13 +22,6 @@ class ScrapedData:
 
 
 class BrandAdapter(ABC):
-    """Base class for all brand-specific scrapers.
-
-    Subclasses must set the class attribute `marca` to the exact DB string
-    (e.g. "Hurricane") and implement `search`. The `marca` attribute is
-    enforced at class-definition time via `__init_subclass__`.
-    """
-
     marca: str
 
     def __init_subclass__(cls, **kwargs: object) -> None:
@@ -32,22 +31,42 @@ class BrandAdapter(ABC):
                 f"{cls.__name__} must define a 'marca' class attribute of type str"
             )
 
-    @abstractmethod
     async def search(
         self, product_name: str, num_fab: str | None
     ) -> ScrapedData | None:
-        """Return ScrapedData on success, None if nothing was found."""
+        for source in self._sources():
+            try:
+                result = await source(product_name, num_fab)
+                if result is not None:
+                    return result
+            except Exception:
+                logger.warning(
+                    "%s: source %s failed for %r",
+                    self.marca,
+                    getattr(source, "__name__", repr(source)),
+                    product_name,
+                    exc_info=True,
+                )
+        return None
+
+    @abstractmethod
+    def _sources(self) -> list[Source]:
         ...
 
 
-# Import concrete adapters AFTER the base class is defined.
-# Each entry maps the exact DB marca string to its adapter class.
-# hurricane.py imports BrandAdapter from this module; the deferred import
-# ensures BrandAdapter is fully defined before hurricane.py is processed.
+class GenericAdapter(BrandAdapter):
+    marca = "GENERIC"
+
+    def _sources(self) -> list[Source]:
+        from sources.mercadolivre import search_mercadolivre
+        from sources.duckduckgo import search_duckduckgo
+
+        return [search_mercadolivre, search_duckduckgo]
+
+
+# Deferred imports to avoid circular dependencies
 from .hurricane import HurricaneAdapter  # noqa: E402
 
 REGISTRY: dict[str, type[BrandAdapter]] = {
     "HURRICANE": HurricaneAdapter,
-    # To add a new brand: import its adapter class and add a key here.
-    # "JBL": JBLAdapter,
 }
