@@ -39,6 +39,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${PRODUTOS_MIGRATION_USER}:${PRODUTOS_MIGRATION_PASSWORD}@produtos-db:5432/${PRODUTOS_DB_NAME}
+      MIGRATION_USER: ${PRODUTOS_MIGRATION_USER}
       APP_USER: ${APP_USER}
     command: ["./init"]
 
@@ -101,6 +102,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://${PEDIDOS_MIGRATION_USER}:${PEDIDOS_MIGRATION_PASSWORD}@pedidos-db:5432/${PEDIDOS_DB_NAME}
+      MIGRATION_USER: ${PEDIDOS_MIGRATION_USER}
       APP_USER: ${APP_USER}
     command: ["./init"]
 
