@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{AppState, CompleteOrder, Order, OrderItem, Status},
-    produto_client::{ValidatedItem, validate_items},
+    produto_client::{ValidatedItem, adjust_product_stock, update_product_stock, validate_items},
     schema::{AddItemSchema, CreateOrderSchema, OrderListQuery, UpdateOrderItemsSchema, UpdateStatusSchema},
 };
 
@@ -175,6 +175,19 @@ pub async fn create_order(
 
     tx.commit().await.map_err(AppError::DbError)?;
 
+    // Decrease stock for each validated item after successful commit
+    {
+        let client = state.http.clone();
+        let produtos_url = state.produtos_url.clone();
+        let items = validated.clone();
+        tokio::spawn(async move {
+            for v in &items {
+                let new_estoque = (v.current_estoque - v.quantity).max(0);
+                update_product_stock(&client, &produtos_url, v.id_product, new_estoque).await;
+            }
+        });
+    }
+
     // Notify seller via WhatsApp — fire-and-forget, order already committed.
     // JoinHandle intentionally dropped: notify_order handles all errors internally.
     {
@@ -190,11 +203,12 @@ pub async fn create_order(
 }
 
 pub async fn update_status(
-    db: &PgPool,
+    state: &AppState,
     order_id: i64,
     customer_id: Uuid,
     body: UpdateStatusSchema,
 ) -> Result<Order, AppError> {
+    let db = &state.db;
     let order = sqlx::query_as!(
         Order,
         r#"SELECT id, customer_id, stat as "stat: Status", created_at, updated_at
@@ -222,6 +236,8 @@ pub async fn update_status(
         )));
     }
 
+    let is_cancelling = matches!(body.status, Status::Cancelado | Status::Rejeitado);
+
     let updated = sqlx::query_as!(
         Order,
         r#"UPDATE pedidos SET stat = $1, updated_at = NOW()
@@ -237,8 +253,26 @@ pub async fn update_status(
         sqlx::Error::RowNotFound => AppError::UnprocessableEntity(
             "Order status changed concurrently, please retry".to_string(),
         ),
-        _ => AppError::DbError(e),
+            _ => AppError::DbError(e),
     })?;
+
+    if is_cancelling {
+        let items = sqlx::query!(
+            "SELECT id_product, quantity FROM items_pedidos WHERE id_order = $1",
+            order_id
+        )
+        .fetch_all(db)
+        .await
+        .map_err(AppError::DbError)?;
+
+        let client = state.http.clone();
+        let url = state.produtos_url.clone();
+        tokio::spawn(async move {
+            for item in &items {
+                adjust_product_stock(&client, &url, item.id_product, item.quantity).await;
+            }
+        });
+    }
 
     Ok(updated)
 }
@@ -296,6 +330,51 @@ pub async fn update_items(
     // Validate new items before opening transaction
     let validated_adds: Vec<ValidatedItem> = if let Some(ref add) = body.add {
         validate_items(&state.http, &state.produtos_url, add).await?
+    } else {
+        vec![]
+    };
+
+    // Fetch quantities for items being removed (used for stock restoration)
+    let removed_items: Vec<(i32, i32)> = if let Some(ref remove_ids) = body.remove {
+        let mut items = Vec::new();
+        for &item_id in remove_ids {
+            let row = sqlx::query!(
+                "SELECT id_product, quantity FROM items_pedidos WHERE id = $1 AND id_order = $2",
+                item_id,
+                order_id
+            )
+            .fetch_optional(&state.db)
+            .await
+            .map_err(AppError::DbError)?;
+            if let Some(r) = row {
+                items.push((r.id_product, r.quantity));
+            }
+        }
+        items
+    } else {
+        vec![]
+    };
+
+    // Fetch old quantities for items being updated (used for stock delta)
+    let update_deltas: Vec<(i32, i32)> = if let Some(ref updates) = body.update {
+        let mut deltas = Vec::new();
+        for u in updates {
+            let row = sqlx::query!(
+                "SELECT id_product, quantity FROM items_pedidos WHERE id = $1 AND id_order = $2",
+                u.id,
+                order_id
+            )
+            .fetch_optional(&state.db)
+            .await
+            .map_err(AppError::DbError)?;
+            if let Some(r) = row {
+                let delta = r.quantity - u.quantity;
+                if delta != 0 {
+                    deltas.push((r.id_product, delta));
+                }
+            }
+        }
+        deltas
     } else {
         vec![]
     };
@@ -367,6 +446,27 @@ pub async fn update_items(
         .map_err(AppError::DbError)?;
 
     tx.commit().await.map_err(AppError::DbError)?;
+
+    // Adjust stock for all changes after successful commit
+    {
+        let client = state.http.clone();
+        let url = state.produtos_url.clone();
+        let add_items = validated_adds.clone();
+        let remove_stock = removed_items.clone();
+        let update_stock = update_deltas.clone();
+        tokio::spawn(async move {
+            for v in &add_items {
+                let new_estoque = (v.current_estoque - v.quantity).max(0);
+                update_product_stock(&client, &url, v.id_product, new_estoque).await;
+            }
+            for (id_product, quantity) in &remove_stock {
+                adjust_product_stock(&client, &url, *id_product, *quantity).await;
+            }
+            for (id_product, delta) in &update_stock {
+                adjust_product_stock(&client, &url, *id_product, *delta).await;
+            }
+        });
+    }
 
     get_order(&state.db, order_id, customer_id).await
 }

@@ -3,6 +3,7 @@ use futures::future::join_all;
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::schema::AddItemSchema;
 
@@ -13,6 +14,7 @@ pub struct ValidatedItem {
     pub nome: String,
     pub quantity: i32,
     pub unit_price: Decimal,
+    pub current_estoque: i32,
 }
 
 #[derive(Deserialize)]
@@ -69,6 +71,7 @@ pub async fn validate_items(
                                         nome: p.nome,
                                         quantity,
                                         unit_price: p.valor,
+                                        current_estoque: p.estoque,
                                     })
                                 }
                             }
@@ -109,6 +112,83 @@ pub async fn validate_items(
         Ok(validated)
     } else {
         Err(AppError::ValidationFailed { items: errors })
+    }
+}
+
+/// Updates the estoque of a product in the produtos service.
+/// Fire-and-forget — logs warning on failure but does not abort the caller.
+pub async fn update_product_stock(
+    client: &Client,
+    produtos_url: &str,
+    id_product: i32,
+    new_estoque: i32,
+) {
+    let url = format!("{produtos_url}/api/products/{id_product}");
+    let body = json!({ "estoque": new_estoque });
+
+    match client.patch(&url).json(&body).send().await {
+        Ok(r) if r.status().is_success() => {
+            tracing::debug!(id_product, new_estoque, "estoque updated");
+        }
+        Ok(r) => {
+            tracing::warn!(
+                id_product, new_estoque, status = %r.status(),
+                "failed to update estoque in produtos service"
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                id_product, new_estoque, error = %e,
+                "failed to reach produtos service for estoque update"
+            );
+        }
+    }
+}
+
+/// Fetches current estoque, applies a relative adjustment, and updates.
+/// Returns the new estoque value, or None if the operation failed.
+pub async fn adjust_product_stock(
+    client: &Client,
+    produtos_url: &str,
+    id_product: i32,
+    delta: i32,
+) -> Option<i32> {
+    let url = format!("{produtos_url}/api/products/{id_product}");
+
+    let current = match client.get(&url).send().await {
+        Ok(r) if r.status().is_success() => match r.json::<ProductResponse>().await {
+            Ok(body) => body.data.product.estoque,
+            Err(e) => {
+                tracing::warn!(id_product, error = %e, "failed to parse product response for stock adjustment");
+                return None;
+            }
+        },
+        Ok(r) => {
+            tracing::warn!(id_product, status = %r.status(), "failed to fetch product for stock adjustment");
+            return None;
+        }
+        Err(e) => {
+            tracing::warn!(id_product, error = %e, "failed to reach produtos service for stock adjustment");
+            return None;
+        }
+    };
+
+    let new_estoque = (current + delta).max(0);
+
+    let patch_body = json!({ "estoque": new_estoque });
+    match client.patch(&url).json(&patch_body).send().await {
+        Ok(r) if r.status().is_success() => {
+            tracing::debug!(id_product, current, delta, new_estoque, "estoque adjusted");
+            Some(new_estoque)
+        }
+        Ok(r) => {
+            tracing::warn!(id_product, status = %r.status(), "failed to patch estoque");
+            None
+        }
+        Err(e) => {
+            tracing::warn!(id_product, error = %e, "failed to reach produtos service for stock adjustment");
+            None
+        }
     }
 }
 

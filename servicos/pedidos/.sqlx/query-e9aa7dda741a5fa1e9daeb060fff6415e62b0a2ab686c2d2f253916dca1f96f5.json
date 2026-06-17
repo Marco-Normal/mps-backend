@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id_product, quantity FROM items_pedidos WHERE id = $1 AND id_order = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id_product",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "quantity",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e9aa7dda741a5fa1e9daeb060fff6415e62b0a2ab686c2d2f253916dca1f96f5"
+}

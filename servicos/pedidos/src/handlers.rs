@@ -52,7 +52,7 @@ pub async fn update_status_handler(
     Json(body): Json<UpdateStatusSchema>,
 ) -> Result<impl IntoResponse, AppError> {
     info!(id, "Updating order status");
-    let order = service::update_status(&state.db, id, customer_id, body).await?;
+    let order = service::update_status(&state, id, customer_id, body).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({ "order": order }))))
 }
 
