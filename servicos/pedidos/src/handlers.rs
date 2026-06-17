@@ -73,6 +73,6 @@ pub async fn delete_order_handler(
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
     info!(id, "Deleting order");
-    let order = service::delete_order(&state.db, id, customer_id).await?;
+    let order = service::delete_order(&state, id, customer_id).await?;
     Ok(Json(ApiResponse::success(serde_json::json!({ "order": order }))))
 }

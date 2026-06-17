@@ -472,10 +472,11 @@ pub async fn update_items(
 }
 
 pub async fn delete_order(
-    db: &PgPool,
+    state: &AppState,
     order_id: i64,
     customer_id: Uuid,
 ) -> Result<Order, AppError> {
+    let db = &state.db;
     let order = sqlx::query_as!(
         Order,
         r#"SELECT id, customer_id, stat as "stat: Status", created_at, updated_at
@@ -502,6 +503,22 @@ pub async fn delete_order(
         ));
     }
 
+    let is_processando = matches!(order.stat, Status::Processando);
+    let restore_items: Vec<(i32, i32)> = if is_processando {
+        sqlx::query!(
+            "SELECT id_product, quantity FROM items_pedidos WHERE id_order = $1",
+            order_id
+        )
+        .fetch_all(db)
+        .await
+        .map_err(AppError::DbError)?
+        .into_iter()
+        .map(|r| (r.id_product, r.quantity))
+        .collect()
+    } else {
+        vec![]
+    };
+
     let result = sqlx::query!(
         "DELETE FROM pedidos WHERE id = $1 AND stat = $2",
         order_id,
@@ -515,6 +532,16 @@ pub async fn delete_order(
         return Err(AppError::UnprocessableEntity(
             "Order status changed concurrently, please retry".to_string(),
         ));
+    }
+
+    if !restore_items.is_empty() {
+        let client = state.http.clone();
+        let url = state.produtos_url.clone();
+        tokio::spawn(async move {
+            for (id_product, quantity) in &restore_items {
+                adjust_product_stock(&client, &url, *id_product, *quantity).await;
+            }
+        });
     }
 
     Ok(order)
