@@ -26,12 +26,10 @@ services:
       retries: 5
 
   produtos-init:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: produtos
+    image: mps-produtos:latest
     container_name: mps-produtos-init
+    profiles:
+      - init
     depends_on:
       produtos-db:
         condition: service_healthy
@@ -46,6 +44,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE_NAME: produtos
+    image: mps-produtos:latest
     container_name: mps-produtos-api
     depends_on:
       produtos-init:
@@ -86,12 +85,10 @@ services:
       retries: 5
 
   pedidos-init:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE_NAME: pedidos
+    image: mps-pedidos:latest
     container_name: mps-pedidos-init
+    profiles:
+      - init
     depends_on:
       pedidos-db:
         condition: service_healthy
@@ -106,6 +103,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE_NAME: pedidos
+    image: mps-pedidos:latest
     container_name: mps-pedidos-api
     depends_on:
       pedidos-init:
