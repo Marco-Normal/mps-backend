@@ -47,8 +47,6 @@ services:
     image: mps-produtos:latest
     container_name: mps-produtos-api
     depends_on:
-      produtos-init:
-        condition: service_completed_successfully
       produtos-db:
         condition: service_healthy
     environment:
@@ -106,8 +104,6 @@ services:
     image: mps-pedidos:latest
     container_name: mps-pedidos-api
     depends_on:
-      pedidos-init:
-        condition: service_completed_successfully
       pedidos-db:
         condition: service_healthy
     environment:
@@ -135,8 +131,6 @@ services:
     volumes:
       - produtos_static:/static
     depends_on:
-      produtos-init:
-        condition: service_completed_successfully
       produtos-db:
         condition: service_healthy
 
