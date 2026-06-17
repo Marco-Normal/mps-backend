@@ -124,7 +124,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "3001:3001"
 
   produtos-scraper:
     build:

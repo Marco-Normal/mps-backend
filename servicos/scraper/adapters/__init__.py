@@ -47,7 +47,7 @@ class BrandAdapter(ABC):
 from .hurricane import HurricaneAdapter  # noqa: E402
 
 REGISTRY: dict[str, type[BrandAdapter]] = {
-    "Hurricane": HurricaneAdapter,
+    "HURRICANE": HurricaneAdapter,
     # To add a new brand: import its adapter class and add a key here.
     # "JBL": JBLAdapter,
 }

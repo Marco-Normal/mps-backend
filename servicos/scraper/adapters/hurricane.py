@@ -24,16 +24,14 @@ _PLAYWRIGHT_ARGS = ["--no-sandbox", "--disable-setuid-sandbox"]
 
 
 class HurricaneAdapter(BrandAdapter):
-    marca = "Hurricane"
+    marca = "HURRICANE"
 
     async def search(
         self, product_name: str, num_fab: str | None
     ) -> ScrapedData | None:
         # Prefer manufacturer part number for more precise search
         query = num_fab if num_fab else product_name
-        logger.info(
-            "Hurricane: searching %r (num_fab=%r)", product_name, num_fab
-        )
+        logger.info("Hurricane: searching %r (num_fab=%r)", product_name, num_fab)
 
         result = await _scrape_manufacturer(query)
         if result is not None:
@@ -71,7 +69,9 @@ async def _scrape_manufacturer(query: str) -> ScrapedData | None:
                     BeautifulSoup(search_html, "html.parser")
                 )
                 if product_url is None:
-                    logger.debug("Hurricane: no product link in search results for %r", query)
+                    logger.debug(
+                        "Hurricane: no product link in search results for %r", query
+                    )
                     return None
 
                 # --- Step 2: product detail page ---
@@ -112,6 +112,7 @@ async def _scrape_mercadolivre(product_name: str) -> ScrapedData | None:
 # ---------------------------------------------------------------------------
 # HTML parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _find_product_link(soup: BeautifulSoup) -> str | None:
     """Return the URL of the first product in WooCommerce search results."""
@@ -162,7 +163,7 @@ def _extract_images(soup: BeautifulSoup) -> list[str]:
 
     for selector in [
         ".woocommerce-product-gallery__image a",  # href = full-res
-        ".woocommerce-product-gallery img",        # src / data-src
+        ".woocommerce-product-gallery img",  # src / data-src
         ".product-gallery img",
     ]:
         for el in soup.select(selector):
