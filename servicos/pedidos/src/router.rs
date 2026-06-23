@@ -11,6 +11,7 @@ use axum::{
 use tower_http::cors::CorsLayer;
 
 use crate::{
+    admin::{dashboard_stats_handler, sales_data_handler, top_products_handler},
     handlers::{
         create_order_handler, delete_order_handler, get_order_handler,
         list_orders_handler, update_items_handler, update_status_handler,
@@ -37,6 +38,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         )
         .route("/api/pedidos/{id}/status", patch(update_status_handler))
         .route("/api/pedidos/{id}/items", patch(update_items_handler))
+        .route("/api/admin/dashboard/stats", get(dashboard_stats_handler))
+        .route("/api/admin/dashboard/sales", get(sales_data_handler))
+        .route("/api/admin/dashboard/top-products", get(top_products_handler))
         .layer(cors)
         .with_state(state)
 }

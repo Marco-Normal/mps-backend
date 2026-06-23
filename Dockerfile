@@ -17,9 +17,10 @@ COPY . .
 COPY --from=cacher /app/target target
 COPY --from=cacher /usr/local/cargo /usr/local/cargo
 
-# Use a build argument to specify which workspace member to build
+# Use build arguments to specify which workspace member and database URL
 ARG SERVICE_NAME
-RUN cargo build --release --package ${SERVICE_NAME}
+ARG DATABASE_URL
+RUN DATABASE_URL=$DATABASE_URL cargo build --release --package ${SERVICE_NAME}
 
 # 4. Runtime Stage: A ultra-slim image to run the binary
 FROM debian:trixie-slim AS runtime

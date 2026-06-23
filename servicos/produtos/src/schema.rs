@@ -45,6 +45,12 @@ pub struct ProductSearchSchema {
     pub limit: Option<i64>,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct ListProductsSchema {
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -47,6 +47,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE_NAME: produtos
+        DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@host.docker.internal:${PRODUTOS_DB_PORT}/${PRODUTOS_DB_NAME}
     image: mps-produtos:latest
     container_name: mps-produtos-api
     depends_on:
@@ -108,6 +109,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE_NAME: pedidos
+        DATABASE_URL: postgres://${APP_USER}:${APP_PASSWORD}@host.docker.internal:${PEDIDOS_DB_PORT}/${PEDIDOS_DB_NAME}
     image: mps-pedidos:latest
     container_name: mps-pedidos-api
     depends_on:

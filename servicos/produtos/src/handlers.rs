@@ -14,7 +14,7 @@ use tracing::{info, warn};
 use crate::{
     models::{AppState, Product},
     normalization::normalize_string,
-    schema::{ProductSchema, ProductSearchSchema, UpdateProductSchema},
+    schema::{ListProductsSchema, ProductSchema, ProductSearchSchema, UpdateProductSchema},
 };
 
 #[tracing::instrument(skip(state), fields(nome = %body.nome))]
@@ -212,6 +212,54 @@ pub async fn get_products_by_query(
     Ok(Json(ApiResponse::ok(serde_json::json!({
         "products": products
     }))))
+}
+
+#[tracing::instrument(skip(state))]
+pub async fn list_products_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<ListProductsSchema>,
+) -> Result<impl IntoResponse, AppError> {
+    let products: Vec<Product> = if let Some(limit) = params.limit {
+        let offset = params.offset.unwrap_or(0);
+        sqlx::query_as!(
+            Product,
+            r#"SELECT id, nome, marca, num_fab, unidade, valor, descricao, estoque
+            FROM produtos
+            ORDER BY id
+            LIMIT $1 OFFSET $2
+            "#,
+            limit,
+            offset
+        )
+        .fetch_all(&state.db)
+        .await
+        .map_err(AppError::DbError)?
+    } else {
+        sqlx::query_as!(
+            Product,
+            r#"SELECT id, nome, marca, num_fab, unidade, valor, descricao, estoque
+            FROM produtos
+            ORDER BY id
+            "#,
+        )
+        .fetch_all(&state.db)
+        .await
+        .map_err(AppError::DbError)?
+    };
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "products": products
+    }))))
+}
+
+#[tracing::instrument(skip(state))]
+pub async fn count_products_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM produtos")
+        .fetch_one(&state.db)
+        .await
+        .map_err(AppError::DbError)?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({ "count": count }))))
 }
 
 #[tracing::instrument(skip(state, multipart), fields(id = %id))]
