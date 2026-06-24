@@ -88,6 +88,10 @@ pub async fn main() -> miette::Result<()> {
         .execute(&pool)
         .await
         .into_diagnostic()?;
+        sqlx::raw_sql( & format!(
+            "UPDATE produtos
+            SET estoque=10;"
+        ))
         info!("Initialization complete");
         return Ok(());
     }
